@@ -1,0 +1,12 @@
+[package]
+name = "integration-tests"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+anchor-lang = {version = "0.31.1", features = ["init-if-needed"]}
+anchor-spl = "0.31.1"
+uint = "*"
+vrgda-exp = {path = "../programs/vrgda-exp"}
+solana-sdk = "*"
+litesvm = "0.6.1"
