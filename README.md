@@ -13,6 +13,10 @@ and,
 
 Feel free to modify the test values and params.
 
+
+## Note
+The precise number library and functions are borrowed from Strata protocol's math 
+library which can be found [here](https://github.com/StrataFoundation/strata/tree/master/programs/spl-token-bonding/src).
 ## Warning
 Unaudited code. 
 The formula needs upper and lower bounds since exponential functions can easily overflow.
