@@ -2,7 +2,7 @@ use {
     anchor_lang::{system_program, AccountDeserialize, InstructionData, Space, ToAccountMetas}, anchor_spl::{
         associated_token::spl_associated_token_account, token::spl_token, token_2022::spl_token_2022
     }, litesvm::types::TransactionResult, solana_sdk::{
-        instruction::Instruction, message::{self, v0::Message, VersionedMessage}, program_pack::Pack, pubkey::Pubkey, signature::Keypair, signer::Signer, system_instruction::{self, SystemInstruction}, transaction::{Transaction, VersionedTransaction}
+        compute_budget::ComputeBudgetInstruction, instruction::Instruction, message::{self, v0::Message, VersionedMessage}, program_pack::Pack, pubkey::Pubkey, signature::Keypair, signer::Signer, system_instruction::{self, SystemInstruction}, transaction::{Transaction, VersionedTransaction}
     }, spl_token_2022::{
         instruction::initialize_account,
         state::Account,
@@ -99,6 +99,31 @@ pub fn init_mint_account(svm: &mut litesvm::LiteSVM, payer: &Keypair, token_mint
     svm.send_transaction(mint_tx).unwrap();
 }
 
+pub fn mint_tokens(
+    svm: &mut litesvm::LiteSVM,
+    payer: &Keypair,
+    mint: &Keypair,
+    destination: Pubkey,
+    amount: u64,
+) {
+    let mint_to_ix = spl_token_2022::instruction::mint_to(
+        &spl_token_2022::id(),
+        &mint.pubkey(),
+        &destination,
+        &mint.pubkey(),
+        &[&mint.pubkey()],
+        amount,
+    )
+    .unwrap();
+    let mint_to_tx = Transaction::new_signed_with_payer(
+        &[mint_to_ix],
+        Some(&payer.pubkey()),
+        &[&payer, &mint],
+        svm.latest_blockhash(),
+    );
+    svm.send_transaction(mint_to_tx).unwrap();
+}
+
 pub fn airdrop_spl(
     svm: &mut litesvm::LiteSVM,
     payer: &Keypair,
@@ -166,6 +191,8 @@ pub fn get_vrgda_address(
 pub fn initialize_vrgda_testing_accounts(
     svm: &mut litesvm::LiteSVM,
     vrgda_pda: &Pubkey,
+    vrgda_sol_ata: &Pubkey,
+    vrgda_mint_ata: &Pubkey,
     payer: &Keypair,
     mint: &Keypair,
     wsol_mint: &Keypair,
@@ -219,6 +246,8 @@ pub fn initialize_vrgda_testing_accounts(
 
     println!("Mint account initialized at: {:?}", mint.pubkey());
 
+    // mint some tokens
+
     // // initializing mint vaults
     // let _ = initialize_ata(
     //     svm, 
@@ -240,15 +269,14 @@ pub fn initialize_vrgda_testing_accounts(
         payer, 
         wsol_mint
     );
+    
 
     println!("WSOL Mint account initialized at: {:?}", wsol_mint.pubkey());
 
 
-    let vrgda_vault_address = spl_associated_token_account::get_associated_token_address_with_program_id(
-        &vrgda_pda, 
-        &mint.pubkey(),
-        &spl_token_2022::ID,
-    );
+    
+
+    println!("VRGDA vault address: {:?}", vrgda_mint_ata);
 
     // initialize wsol vaults
 
@@ -276,20 +304,14 @@ pub fn initialize_vrgda_testing_accounts(
     //     &[&authority.pubkey()],
     // ).unwrap();
 
-    let vrgda_wsol_vault_address = spl_associated_token_account::get_associated_token_address_with_program_id(
-        &authority.pubkey(), 
-        &wsol_mint.pubkey(),
-        &spl_token_2022::ID,
-    );
-
 
     let ix_accounts = vrgda_exp::accounts::Initialize {
         authority: authority.pubkey(),
         vrgda: *vrgda_pda,
-        vrgda_vault: vrgda_vault_address,
+        vrgda_vault: *vrgda_mint_ata,
         mint: mint.pubkey(),
         wsol_mint: wsol_mint.pubkey(),
-        vrgda_sol_ata: vrgda_wsol_vault_address,
+        vrgda_sol_ata: *vrgda_sol_ata,
         token_program: spl_token_2022::ID,
         associated_token_program: spl_associated_token_account::ID,
         system_program: solana_sdk::system_program::ID,
@@ -317,7 +339,112 @@ pub fn initialize_vrgda_testing_accounts(
         svm.latest_blockhash(),
     );
     svm.send_transaction(transaction).unwrap();
-   
+    svm.get_account(vrgda_pda).unwrap();
+     // mint some tokens to the VRGDA vault
+    let _ = mint_tokens(
+        svm, 
+        payer, 
+        mint, 
+        *vrgda_mint_ata, 
+        total_supply
+    );
+    println!("Minted {} tokens to VRGDA vault at: {:?}", total_supply, vrgda_mint_ata);
+}
+
+
+pub fn buy_tokens(
+    svm: &mut litesvm::LiteSVM,
+    admin: &Keypair, 
+    buyer: &Keypair,
+    vrgda_authority: &Keypair,
+    vrgda_pda: &Pubkey,
+    vrgda_sol_ata: &Pubkey,
+    vrgda_mint_ata: &Pubkey,
+    mint: &Keypair,
+    wsol_mint: &Keypair,
+    amount: u64,
+) {
+
+    svm.airdrop(&buyer.pubkey(), 100_000_000_000_000).unwrap();
+  
+    let _ = initialize_ata(
+        svm, 
+        buyer, 
+        mint.pubkey(),
+        buyer.pubkey()
+    );
+
+    let _ = initialize_ata(
+        svm, 
+        buyer, 
+        wsol_mint.pubkey(),
+        buyer.pubkey()
+    );
+
+
+    // mint some WSOL to the buyer
+    let buyer_wsol_ata = spl_associated_token_account::get_associated_token_address_with_program_id(
+        &buyer.pubkey(),
+        &wsol_mint.pubkey(),
+        &spl_token_2022::ID,
+    );
+
+    assert!(
+        svm.get_account(&buyer_wsol_ata).is_some(),
+        "Buyer ATA should have been created"
+    );
+
+    let buyer_ata = spl_associated_token_account::get_associated_token_address_with_program_id(
+        &buyer.pubkey(),
+        &mint.pubkey(),
+        &spl_token_2022::ID,
+    );
+
+    let _ = mint_tokens(
+        svm, 
+        admin, 
+        wsol_mint, 
+        buyer_wsol_ata, 
+        10_000_000_000_000_000 // 10 million WSOL
+    );
+
+    let buy_ix = vrgda_exp::instruction::Buy {
+        amount,
+    };
+
+    let ix_accounts = vrgda_exp::accounts::Buy {
+        buyer: buyer.pubkey(),
+        vrgda: *vrgda_pda,
+        mint: mint.pubkey(),
+        wsol_mint: wsol_mint.pubkey(),
+        buyer_wsol_ata:buyer_wsol_ata,
+        buyer_ata,
+        vrgda_vault: *vrgda_mint_ata,
+        vrgda_sol_ata: *vrgda_sol_ata,
+        authority: vrgda_authority.pubkey(),
+        token_program: spl_token_2022::ID,
+        associated_token_program: spl_associated_token_account::ID,
+        system_program: system_program::ID,
+        rent: solana_sdk::sysvar::rent::ID,
+    };
+
+    let instruction = Instruction {
+        program_id: vrgda_exp::ID,
+        accounts: ix_accounts.to_account_metas(None),
+        data: buy_ix.data(),
+    };
+
+    let compute_budget_ix: Instruction =
+        ComputeBudgetInstruction::set_compute_unit_limit(1_400_000);
+
+    let transaction = Transaction::new_signed_with_payer(
+        &[compute_budget_ix, instruction],
+        Some(&buyer.pubkey()),
+        &[buyer],
+        svm.latest_blockhash(),
+    );
+    svm.send_transaction(transaction).unwrap();
+
 }
 
 pub fn fetch_account_data<T: AccountDeserialize>(
