@@ -17,6 +17,13 @@ mod tests {
     #[test]
     fn test_init() {
         let mut svm = LiteSVM::new();
+
+        svm.add_program_from_file(
+            vrgda_exp::ID,
+            "../target/deploy/vrgda_exp.so"
+        ).expect("Failed to load VRGDA program");
+
+
         let payer = Keypair::new();
         let mint = Keypair::new();
         let wsol_mint = Keypair::new();
@@ -31,7 +38,7 @@ mod tests {
         println!("program ID: {:?}", vrgda_exp::ID);
         let target_price_wad = 4_000_000_000u128;
         // Initialize the SVM
-        helpers::initialize_vrgda_testing_accounts(&mut svm, &payer, &mint, &wsol_mint, &authority, target_price_wad, 50, 0, 1_000_000_000, 1_000_000);
+        helpers::initialize_vrgda_testing_accounts(&mut svm, &vrgda_pda, &payer, &mint, &wsol_mint, &authority, target_price_wad, 50, 0, 1_000_000_000, 1_000_000);
 
         
         assert!(svm.get_account(&vrgda_pda).is_some(), "VRGDA account should be initialized");

@@ -456,6 +456,11 @@ impl VRGDA {
         Ok(total_cost)
     }
 
+    /// Super experimental O(amount) cost for buying `amount` tokens starting from `sold`
+    /// This is a chunked geometric series sum, so it should be O(1) in practice.
+    /// It is not recommended to use this function in production, as it is not optimized.
+    /// Use `vrgda_price_for_amount` instead.
+    /// This function is only for testing purposes and may not be accurate.
     pub fn vrgda_price_for_amount_v1(
         &self,
         now: i64,
