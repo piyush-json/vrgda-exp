@@ -141,9 +141,9 @@ export default function LaunchToken() {
         uri: formData.logo ? URL.createObjectURL(formData.logo) : "https://arweave.net/example-token-metadata-uri",
       }
       console.log('Launching token with params:', params)
-      const { mint } = await initializeVRGDA(params)
-      console.log('Token launched successfully:', mint)
-      setFormData((prev) => ({ ...prev, mint }))
+      const { vrgda } = await initializeVRGDA(params)
+      console.log('Token launched successfully:', vrgda)
+      setFormData((prev) => ({ ...prev, mint: vrgda }))
       setStep(3)
     } catch (error) {
       console.error('Error launching token:', error)

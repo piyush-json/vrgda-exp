@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Program } from '@coral-xyz/anchor'
 import { useAnchorProvider } from '~/components/solana/solana-provider'
-import { IDL } from 'types/new_vrgda'
-import { VRGDA_PROGRAM_ID } from './use-vrgda'
+import IDL from 'idl/idl/vrgda.json'
+import type { Vrgda } from 'idl/types/vrgda'
 
 export type TokenData = {
+  vrgda: string
   mintAddress: string
   id: string
   r: string
@@ -87,22 +88,24 @@ export function useAllTokens() {
     setError(null)
 
     try {
-      const program = new Program(IDL, VRGDA_PROGRAM_ID, provider)
-      const mintStates = await program.account.mintState.all()
-      console.log('Fetched mint states:', mintStates)
+      const program = new Program<Vrgda>(IDL, provider)
+      const mintStates = await program.account.vrgda.all()
       const allTokens: TokenData[] = mintStates.map((mintStateAccount, index) => ({
+        vrgda: mintStateAccount.publicKey.toString(),
         mintAddress: mintStateAccount.account.mint.toString(),
-        r: mintStateAccount.account.r.toString(),
-        reservePrice: mintStateAccount.account.reservePrice.toString(),
-        decayConstant: mintStateAccount.account.decayConstant.toString(),
-        symbol: mintStateAccount.account.symbol,
+        r: mintStateAccount.account.schedule.linearSchedule.r.toString(),
+        // reservePrice: mintStateAccount.account.reservePrice.toString(),
+        reservePrice: '0',
+        decayConstant: (Number(mintStateAccount.account.decayConstantPercent.toString()) / 100).toString(),
+        symbol: 'VRGDA',
         totalSupply: mintStateAccount.account.totalSupply.toString(),
-        auctionDurationDays: mintStateAccount.account.auctionDurationDays.toString(),
-        startTime: mintStateAccount.account.startTime.toString(),
+        // auctionDurationDays: mintStateAccount.account.auctionDurationDays.toString(),
+        auctionDurationDays: '7',
+        startTime: mintStateAccount.account.vrgdaStartTimestamp.toString(),
         tokensSold: mintStateAccount.account.tokensSold.toString(),
         id: `${mintStateAccount.publicKey.toString()}-${index}`
       }))
-
+      console.log('Fetched tokens:', allTokens)
       setCachedData(allTokens)
       setAllTokens(allTokens)
       updatePaginatedTokens(allTokens, 1)
