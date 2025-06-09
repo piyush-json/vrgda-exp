@@ -5,13 +5,10 @@ pub mod helpers;
 mod tests {
     use super::*;
     use litesvm::LiteSVM;
-    use solana_sdk::pubkey::Pubkey;
     use solana_sdk::signature::Keypair;
     use anchor_spl::token_2022::spl_token_2022;
-    use anchor_spl::associated_token::spl_associated_token_account::{self, create_associated_token_account};
+    use anchor_spl::associated_token::spl_associated_token_account;
     use solana_sdk::signer::Signer;
-    use spl_token_2022::instruction::mint_to;
-    use spl_token_2022::state::Account as TokenAccount;
 
     
     #[test]
