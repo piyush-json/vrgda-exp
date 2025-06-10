@@ -1,16 +1,30 @@
 pub mod helpers;
 
-
 #[cfg(test)]
 mod tests {
+    use std::fs::File;
+
     use super::*;
     use litesvm::LiteSVM;
-    use solana_sdk::signature::Keypair;
+    use solana_sdk::{clock::Clock, signature::Keypair};
     use anchor_spl::token_2022::spl_token_2022;
     use anchor_spl::associated_token::spl_associated_token_account;
     use solana_sdk::signer::Signer;
+    use pprof::ProfilerGuard;
+    use vrgda_exp::state::{get_target_sale_time_precise_for_test, vrgda_price_for_amount_for_tests};
 
     
+    fn dump_flamegraph(test_name: &str, guard: ProfilerGuard) {
+        if let Ok(report) = guard.report().build() {
+            let path = format!("{}-flamegraph.svg", test_name);
+            let file = File::create(&path).expect("Could not create flamegraph file");
+            report.flamegraph(file).expect("Failed to write flamegraph");
+            eprintln!("🔥 Wrote {}", path);
+        } else {
+            eprintln!("⚠️  pprof guard failed to build report for {}", test_name);
+        }
+    }
+
     #[test]
     fn test_init() {
         let mut svm = LiteSVM::new();
@@ -55,6 +69,7 @@ mod tests {
 
     #[test]
     fn test_buy() {
+        // let guard = ProfilerGuard::new(100).expect("Failed to create profiler guard");
         let mut svm = LiteSVM::new();
 
         svm.add_program_from_file(
@@ -101,6 +116,8 @@ mod tests {
             1000
         );
 
+        // Dump the flamegraph for the test
+        // dump_flamegraph("test_buy", guard);
         let destination = spl_associated_token_account::get_associated_token_address_with_program_id(
             &buyer.pubkey(), 
             &mint.pubkey(),
@@ -108,5 +125,37 @@ mod tests {
         );
         // Check if the buy was successful
         assert!(svm.get_account(&destination).is_some(), "Destination account should have been created");
+    }
+
+    #[test]
+    fn test_pricing_fn() {
+        let guard = ProfilerGuard::new(10).expect("Failed to create profiler guard");
+        let svm = LiteSVM::new();
+        let target_price = 4u64;
+        let sold = 0;
+        let rate = 1_000_000u64;
+        //    let target_sale_time = get_target_sale_time_precise_for_test(sold, rate);
+        let now  = svm.get_sysvar::<Clock>()
+            .unix_timestamp;
+        let start_ts = now;
+
+        let amount = 1_000_000_000u64;
+
+        for _ in 0..100{
+            let price = vrgda_price_for_amount_for_tests(
+                now, 
+                sold, 
+                amount,
+                start_ts,
+                rate,
+                5,
+                target_price
+            );
+            println!("Price for amount {}: {:?}", amount, price);
+        }
+
+        // std::thread::sleep(std::time::Duration::from_millis(1000));
+        // Dump the flamegraph for the test
+        dump_flamegraph("test_pricing_fn", guard);
     }
 }
