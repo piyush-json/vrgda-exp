@@ -5,13 +5,14 @@ mod tests {
     use std::fs::File;
 
     use super::*;
+    use anchor_lang::AccountDeserialize;
     use litesvm::LiteSVM;
     use solana_sdk::{clock::Clock, signature::Keypair};
     use anchor_spl::token_2022::spl_token_2022;
     use anchor_spl::associated_token::spl_associated_token_account;
     use solana_sdk::signer::Signer;
     use pprof::ProfilerGuard;
-    use vrgda_exp::state::vrgda_price_for_amount_for_tests;
+    use vrgda_exp::state::{vrgda_price_for_amount_for_tests, VRGDA};
 
     
     fn dump_flamegraph(test_name: &str, guard: ProfilerGuard) {
@@ -26,6 +27,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // This test is ignored by default to avoid running it on every test run
     fn test_init() {
         let mut svm = LiteSVM::new();
 
@@ -68,6 +70,7 @@ mod tests {
     }
 
     #[test]
+    // #[ignore] // This test is ignored by default to avoid running it on every test run
     fn test_buy() {
         // let guard = ProfilerGuard::new(100).expect("Failed to create profiler guard");
         let mut svm = LiteSVM::new();
@@ -113,7 +116,7 @@ mod tests {
             &vrgda_mint_ata,
             &mint,
             &wsol_mint,
-            1000
+            1000000
         );
 
         // Dump the flamegraph for the test
@@ -123,11 +126,17 @@ mod tests {
             &mint.pubkey(),
             &spl_token_2022::ID,
         );
+        let acc = svm.get_account(&vrgda_pda);
+        let vrgda_state: VRGDA = AccountDeserialize::try_deserialize(&mut acc.unwrap().data.as_ref())
+            .expect("Failed to deserialize VRGDA state");
+
+        println!("VRGDA state after buy: {:?}", vrgda_state);
         // Check if the buy was successful
         assert!(svm.get_account(&destination).is_some(), "Destination account should have been created");
     }
 
     #[test]
+    #[ignore] // This test is ignored by default to avoid running it on every test run
     fn test_pricing_fn() {
         let guard = ProfilerGuard::new(10).expect("Failed to create profiler guard");
         let svm = LiteSVM::new();

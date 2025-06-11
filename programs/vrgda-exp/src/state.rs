@@ -10,7 +10,7 @@ pub const WSOL_MINT: Pubkey = Pubkey::new_from_array([
 ]);
 
 #[account]
-#[derive(InitSpace)]
+#[derive(InitSpace, Debug)]
 pub struct VRGDA {
     pub mint: Pubkey,
     // The max amount that can be minted to a buyer's account.
