@@ -11,7 +11,7 @@ mod tests {
     use anchor_spl::associated_token::spl_associated_token_account;
     use solana_sdk::signer::Signer;
     use pprof::ProfilerGuard;
-    use vrgda_exp::state::{get_target_sale_time_precise_for_test, vrgda_price_for_amount_for_tests};
+    use vrgda_exp::state::vrgda_price_for_amount_for_tests;
 
     
     fn dump_flamegraph(test_name: &str, guard: ProfilerGuard) {
@@ -134,7 +134,6 @@ mod tests {
         let target_price = 4u64;
         let sold = 0;
         let rate = 1_000_000u64;
-        //    let target_sale_time = get_target_sale_time_precise_for_test(sold, rate);
         let now  = svm.get_sysvar::<Clock>()
             .unix_timestamp;
         let start_ts = now;
@@ -153,9 +152,6 @@ mod tests {
             );
             println!("Price for amount {}: {:?}", amount, price);
         }
-
-        // std::thread::sleep(std::time::Duration::from_millis(1000));
-        // Dump the flamegraph for the test
         dump_flamegraph("test_pricing_fn", guard);
     }
 }
