@@ -8,7 +8,7 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '~/components/ui/alert'
 import { Button } from '~/components/ui/button'
 import { CheckIcon, InfoIcon } from 'lucide-react'
-import { useNavigate } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 
 interface SuccessStepProps {
   formData: {
@@ -116,9 +116,13 @@ export function SuccessStep({ formData }: SuccessStepProps) {
       </CardContent>
 
       <CardFooter className='flex justify-center'>
-        <Button onClick={() => {
-          navigate(`/token/${formData.mint}`, { replace: true })
-        }}>Go to Token Dashboard</Button>
+        <Button asChild>
+          <Link
+            to={`/token/${formData.mint}`}
+          >
+            Go to Token Dashboard
+          </Link>
+        </Button>
       </CardFooter>
     </>
   )

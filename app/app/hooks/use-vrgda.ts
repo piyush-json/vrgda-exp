@@ -19,7 +19,10 @@ import {
   createInitializeMint2Instruction,
   createAssociatedTokenAccountIdempotentInstruction,
   getMint,
-  getMinimumBalanceForRentExemptMint
+  getMinimumBalanceForRentExemptMint,
+  NATIVE_MINT,
+  createSyncNativeInstruction,
+  createMintToInstruction
 } from '@solana/spl-token'
 import { useAnchorProvider } from '~/components/solana/solana-provider'
 import { type Cluster } from '~/components/cluster/cluster-data-access'
@@ -43,6 +46,8 @@ export function getVrgdaProgramId(cluster: Cluster) {
       return VRGDA_PROGRAM_ID;
   }
 }
+
+const DECIMAL = 1_000_000 // 6 decimals for VRGDA tokens
 
 export function useVRGDA() {
   const { publicKey } = useWallet()
@@ -171,15 +176,15 @@ export function useVRGDA() {
       }
 
       const targetPriceWad = new BN(params.targetPrice * LAMPORTS_PER_SOL).mul(new BN(LAMPORTS_PER_SOL))
-      const vrgdaStartTimestamp = new BN(params.vrgdaStartTimestamp || Math.floor(Date.now() / 1000))
+      const vrgdaStartTimestamp = new BN(0)
 
       const initVrgdaIx = await program.methods
         .initializeVrgda(
           targetPriceWad,
-          new BN(params.decayConstant),
+          new BN(params.decayConstant * 100),
           vrgdaStartTimestamp,
-          new BN(params.totalSupply),
-          new BN(params.r)
+          new BN(params.totalSupply * DECIMAL),
+          new BN(params.r * DECIMAL)
         )
         .accounts({
           authority,
@@ -197,7 +202,16 @@ export function useVRGDA() {
         .instruction()
 
       transaction.add(initVrgdaIx)
-
+      transaction.add(
+        createMintToInstruction(
+          mintPublic,
+          vrgdaVault,
+          authority,
+          params.totalSupply * DECIMAL,
+          [],
+          TOKEN_PROGRAM_ID
+        )
+      )
       transaction.add(
         createSetAuthorityInstruction(
           mintPublic,
@@ -259,9 +273,72 @@ export function useVRGDA() {
         getAssociatedTokenAddress(wsolMint, authority, false, TOKEN_PROGRAM_ID, ASSOCIATED_TOKEN_PROGRAM_ID)
       ])
 
+      const buyerWsolAtaInfo = await program.provider.connection.getAccountInfo(buyerWsolAta)
+      const preInstructions = [
+        web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 2000000 })
+      ]
+
+      if (!buyerWsolAtaInfo) {
+        preInstructions.push(
+          createAssociatedTokenAccountIdempotentInstruction(
+            publicKey,
+            buyerWsolAta,
+            publicKey,
+            wsolMint,
+            TOKEN_PROGRAM_ID,
+            ASSOCIATED_TOKEN_PROGRAM_ID
+          )
+        )
+      }
+
+      const amountToBuy = new BN(params.amount * DECIMAL)
+
+      const r = Number(vrgdaAccount.schedule.linearSchedule.r.toString()) / DECIMAL
+      const targetPrice = Number(vrgdaAccount.targetPrice.toString()) / (LAMPORTS_PER_SOL * LAMPORTS_PER_SOL)
+      const decayConstant = Number(vrgdaAccount.decayConstantPercent.toString()) / 100
+      const tokensSold = Number(vrgdaAccount.tokensSold.toString()) / DECIMAL
+      const startTime = Number(vrgdaAccount.vrgdaStartTimestamp.toString())
+      const currentTime = Math.floor(Date.now() / 1000)
+      const timePassed = Math.max(0, currentTime - startTime)
+      console.log({
+        timePassed,
+        tokensSold,
+        targetPrice,
+        decayConstant,
+        r,
+        startTime
+      })
+      let totalCost = 0
+      for (let i = 0; i < params.amount; i++) {
+        const tokenIndex = tokensSold + i + 1 // nth token being purchased
+        const targetSaleTime = tokenIndex / r // f^-1(n) for linear schedule
+        const timeDeviation = timePassed - targetSaleTime
+        const priceMultiplier = (1 - decayConstant) ** timeDeviation
+        const tokenPrice = targetPrice * priceMultiplier
+        console.log(tokenIndex)
+        totalCost += Math.max(tokenPrice, 0) // Ensure non-negative price
+      }
+      const requiredLamports = Math.ceil(totalCost * LAMPORTS_PER_SOL)
+      console.log(publicKey.toBase58(), 'needs to send', requiredLamports, 'lamports ie', totalCost, 'SOL to WSOL ATA', buyerWsolAta.toBase58())
+
+      preInstructions.push(
+        SystemProgram.transfer({
+          fromPubkey: publicKey,
+          toPubkey: buyerWsolAta,
+          lamports: LAMPORTS_PER_SOL / 2,
+        })
+      )
+
+      preInstructions.push(
+        createSyncNativeInstruction(
+          buyerWsolAta,
+          TOKEN_PROGRAM_ID
+        )
+      )
+
       // Execute buy transaction
       const tx = await program.methods
-        .buy(new BN(params.amount))
+        .buy(amountToBuy)
         .accountsStrict({
           buyer: publicKey,
           vrgda,
@@ -277,9 +354,7 @@ export function useVRGDA() {
           systemProgram: SystemProgram.programId,
           rent: web3.SYSVAR_RENT_PUBKEY,
         })
-        .preInstructions([
-          web3.ComputeBudgetProgram.setComputeUnitLimit({ units: 2000000 })
-        ])
+        .preInstructions(preInstructions)
         .rpc()
 
       const txUrl = await confirmTx(tx)
@@ -328,11 +403,11 @@ export function useVRGDA() {
       // Calculate time passed since start (in seconds)
       const timePassed = Math.max(0, currentTime - startTime)
 
-      const totalSupply = Number(vrgdaAccount.totalSupply.toString())
-      const tokensSold = Number(vrgdaAccount.tokensSold.toString())
+      const totalSupply = Number(vrgdaAccount.totalSupply.toString()) / DECIMAL
+      const tokensSold = Number(vrgdaAccount.tokensSold.toString()) / DECIMAL
       const remainingSupply = totalSupply - tokensSold
 
-      const r = Number(vrgdaAccount.schedule.linearSchedule.r.toString())
+      const r = Number(vrgdaAccount.schedule.linearSchedule.r.toString()) / DECIMAL
       const targetPrice = Number(vrgdaAccount.targetPrice.toString()) / (LAMPORTS_PER_SOL * LAMPORTS_PER_SOL) // Convert from WAD format (18 decimals) to SOL
       const currentPrice = vrgdaAccount.currentPrice.toNumber() / (LAMPORTS_PER_SOL * LAMPORTS_PER_SOL) // Convert from WAD format (18 decimals) to SOL
 
