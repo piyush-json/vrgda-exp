@@ -1,0 +1,852 @@
+{
+  "address": "9rUZoTzHGK7SJ9jfAzVLaYW9uMv1YkA6pQcby1tFGRZb",
+  "metadata": {
+    "name": "vrgda",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
+    {
+      "name": "buy",
+      "discriminator": [
+        102,
+        6,
+        61,
+        18,
+        1,
+        218,
+        235,
+        234
+      ],
+      "accounts": [
+        {
+          "name": "buyer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vrgda",
+          "writable": true
+        },
+        {
+          "name": "mint",
+          "writable": true,
+          "relations": [
+            "vrgda"
+          ]
+        },
+        {
+          "name": "wsol_mint"
+        },
+        {
+          "name": "buyer_wsol_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "buyer"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "wsol_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "buyer_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "buyer"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "vrgda_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vrgda"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "vrgda_sol_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "wsol_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "authority",
+          "relations": [
+            "vrgda"
+          ]
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "close_auction",
+      "discriminator": [
+        225,
+        129,
+        91,
+        48,
+        215,
+        73,
+        203,
+        172
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "vrgda"
+          ]
+        },
+        {
+          "name": "vrgda",
+          "writable": true
+        },
+        {
+          "name": "vrgda_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vrgda"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "vrgda_sol_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "wsol_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "mint",
+          "writable": true
+        },
+        {
+          "name": "wsol_mint"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_vrgda",
+      "discriminator": [
+        103,
+        185,
+        37,
+        247,
+        54,
+        41,
+        172,
+        213
+      ],
+      "accounts": [
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "vrgda",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  114,
+                  103,
+                  100,
+                  97
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              },
+              {
+                "kind": "account",
+                "path": "authority"
+              }
+            ]
+          }
+        },
+        {
+          "name": "vrgda_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "vrgda"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "vrgda_sol_ata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "authority"
+              },
+              {
+                "kind": "account",
+                "path": "token_program"
+              },
+              {
+                "kind": "account",
+                "path": "wsol_mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "wsol_mint"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "token_program"
+        },
+        {
+          "name": "associated_token_program",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "target_price",
+          "type": "u128"
+        },
+        {
+          "name": "decay_constant_percent",
+          "type": "u64"
+        },
+        {
+          "name": "vrgda_start_timestamp",
+          "type": "i64"
+        },
+        {
+          "name": "total_supply",
+          "type": "u64"
+        },
+        {
+          "name": "r",
+          "type": "u64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "VRGDA",
+      "discriminator": [
+        159,
+        20,
+        71,
+        78,
+        42,
+        222,
+        122,
+        203
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "AmountCantBeZero",
+      "msg": "amount cant be zero"
+    },
+    {
+      "code": 6001,
+      "name": "AmountExceedsTotalSupply",
+      "msg": "Buyer amount exceeds total supply"
+    },
+    {
+      "code": 6002,
+      "name": "AddressesDontMatch",
+      "msg": "address mismatch"
+    },
+    {
+      "code": 6003,
+      "name": "ExponentErrorInTMinusFInverse",
+      "msg": "exponent error in T minus F inverse"
+    },
+    {
+      "code": 6004,
+      "name": "ExponentError",
+      "msg": "Exponent error"
+    },
+    {
+      "code": 6005,
+      "name": "ExponentTooLarge",
+      "msg": "exponent too large"
+    },
+    {
+      "code": 6006,
+      "name": "OneMinusKError",
+      "msg": "One minus k error"
+    },
+    {
+      "code": 6007,
+      "name": "LogError",
+      "msg": "Log error"
+    },
+    {
+      "code": 6008,
+      "name": "DivisionError",
+      "msg": "division error"
+    },
+    {
+      "code": 6009,
+      "name": "MathOverflow",
+      "msg": "math overflow"
+    },
+    {
+      "code": 6010,
+      "name": "InvalidDecayConstant",
+      "msg": "Invalid decay constant percentage"
+    },
+    {
+      "code": 6011,
+      "name": "AuctionEnded",
+      "msg": "Auction has ended"
+    },
+    {
+      "code": 6012,
+      "name": "NonNegativeDecayConstant",
+      "msg": "Decay constant should be negative"
+    }
+  ],
+  "types": [
+    {
+      "name": "Schedule",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "LinearSchedule",
+            "fields": [
+              {
+                "name": "r",
+                "type": "u64"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "name": "VRGDA",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "total_supply",
+            "type": "u64"
+          },
+          {
+            "name": "authority",
+            "docs": [
+              "The account that receives payments."
+            ],
+            "type": "pubkey"
+          },
+          {
+            "name": "target_price",
+            "docs": [
+              "The target price for a token (wad)."
+            ],
+            "type": "u128"
+          },
+          {
+            "name": "decay_constant_percent",
+            "docs": [
+              "The decay constant (wad) computed as ln(1 - price_decay_percent)."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "tokens_sold",
+            "docs": [
+              "Number of tokens sold so far."
+            ],
+            "type": "u64"
+          },
+          {
+            "name": "created_at_timestamp",
+            "docs": [
+              "The timestamp at which this account was initialized."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "vrgda_start_timestamp",
+            "docs": [
+              "Unix timestamp when the VRGDA began."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "auction_ended",
+            "docs": [
+              "ended?"
+            ],
+            "type": "bool"
+          },
+          {
+            "name": "schedule",
+            "type": {
+              "defined": {
+                "name": "Schedule"
+              }
+            }
+          },
+          {
+            "name": "current_price",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "docs": [
+              "Bump for PDA."
+            ],
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}
