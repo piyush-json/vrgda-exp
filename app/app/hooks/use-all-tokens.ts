@@ -1,33 +1,20 @@
 import { useState, useEffect, useCallback } from 'react'
-import { Program } from '@coral-xyz/anchor'
 import { useAnchorProvider } from '~/components/solana/solana-provider'
-import IDL from 'idl/idl/vrgda.json'
-import type { Vrgda } from 'idl/types/vrgda'
+import { VRGDAClient, type VRGDAInfo } from '~/lib/vrgda/index'
 
-export type TokenData = {
-  vrgda: string
-  mintAddress: string
-  id: string
-  r: string
-  reservePrice: string
-  decayConstant: string
-  symbol: string
-  totalSupply: string
-  auctionDurationDays: string
-  startTime: string
-  tokensSold: string
-}
+// Use VRGDAInfo from SDK for consistency
+export type TokenData = VRGDAInfo
 
-const CACHE_KEY = 'vrgda_mint_ids_cache'
-const CACHE_DURATION = 60 * 60 * 1000 // 1 hour
-const TOKENS_PER_PAGE = 30
+const CACHE_KEY = 'vrgda_tokens_cache'
+const CACHE_DURATION = 60 * 1000 // 1 min
+const DEFAULT_TOKENS_PER_PAGE = 30
 
 interface CacheData {
-  allTokens: TokenData[]
+  tokens: TokenData[]
   timestamp: number
 }
 
-export function useAllTokens() {
+export function useAllTokens(tokensPerPage: number = DEFAULT_TOKENS_PER_PAGE) {
   const [allTokens, setAllTokens] = useState<TokenData[]>([])
   const [tokens, setTokens] = useState<TokenData[]>([])
   const [currentPage, setCurrentPage] = useState(1)
@@ -42,16 +29,17 @@ export function useAllTokens() {
       if (!cached) return null
 
       const parsedCache: CacheData = JSON.parse(cached)
-      const now = Date.now()
+      const isExpired = Date.now() - parsedCache.timestamp > CACHE_DURATION
 
-      if (now - parsedCache.timestamp > CACHE_DURATION) {
+      if (isExpired) {
         localStorage.removeItem(CACHE_KEY)
         return null
       }
 
-      return parsedCache.allTokens
+      return parsedCache.tokens
     } catch (error) {
-      console.error('Error reading from cache:', error)
+      console.error('Cache read error:', error)
+      localStorage.removeItem(CACHE_KEY)
       return null
     }
   }, [])
@@ -59,28 +47,28 @@ export function useAllTokens() {
   const setCachedData = useCallback((tokens: TokenData[]) => {
     try {
       const cacheData: CacheData = {
-        allTokens: tokens,
+        tokens,
         timestamp: Date.now()
       }
       localStorage.setItem(CACHE_KEY, JSON.stringify(cacheData))
     } catch (error) {
-      console.error('Error writing to cache:', error)
+      console.error('Cache write error:', error)
     }
   }, [])
 
   const updatePaginatedTokens = useCallback((allTokens: TokenData[], page: number) => {
-    const startIndex = (page - 1) * TOKENS_PER_PAGE
-    const endIndex = startIndex + TOKENS_PER_PAGE
+    const startIndex = (page - 1) * tokensPerPage
+    const endIndex = startIndex + tokensPerPage
     const paginatedTokens = allTokens.slice(startIndex, endIndex)
 
     setTokens(paginatedTokens)
-    setTotalPages(Math.ceil(allTokens.length / TOKENS_PER_PAGE))
-  }, [])
+    setTotalPages(Math.ceil(allTokens.length / tokensPerPage))
+  }, [tokensPerPage])
 
   const fetchAllTokens = useCallback(async () => {
     const provider = getProvider()
     if (!provider) {
-      setError('Provider not found')
+      setError('Solana provider not available')
       return
     }
 
@@ -88,53 +76,42 @@ export function useAllTokens() {
     setError(null)
 
     try {
-      const program = new Program<Vrgda>(IDL, provider)
-      const mintStates = await program.account.vrgda.all()
-      const allTokens: TokenData[] = mintStates.map((mintStateAccount, index) => ({
-        vrgda: mintStateAccount.publicKey.toString(),
-        mintAddress: mintStateAccount.account.mint.toString(),
-        r: mintStateAccount.account.schedule.linearSchedule.r.toString(),
-        // reservePrice: mintStateAccount.account.reservePrice.toString(),
-        reservePrice: '0',
-        decayConstant: (Number(mintStateAccount.account.decayConstantPercent.toString()) / 100).toString(),
-        symbol: 'VRGDA',
-        totalSupply: mintStateAccount.account.totalSupply.toString(),
-        // auctionDurationDays: mintStateAccount.account.auctionDurationDays.toString(),
-        auctionDurationDays: '7',
-        startTime: mintStateAccount.account.vrgdaStartTimestamp.toString(),
-        tokensSold: mintStateAccount.account.tokensSold.toString(),
-        id: `${mintStateAccount.publicKey.toString()}-${index}`
-      }))
-      console.log('Fetched tokens:', allTokens)
-      setCachedData(allTokens)
-      setAllTokens(allTokens)
-      updatePaginatedTokens(allTokens, 1)
-      setCurrentPage(1)
+      const vrgdaClient = VRGDAClient.create(provider)
+      const fetchedTokens = await vrgdaClient.getAllVRGDATokens()
 
+      console.log(`Fetched ${fetchedTokens.length} VRGDA tokens`)
+
+      setCachedData(fetchedTokens)
+      setAllTokens(fetchedTokens)
+      updatePaginatedTokens(fetchedTokens, 1)
+      setCurrentPage(1)
     } catch (error) {
-      console.error('Error fetching tokens:', error)
-      setError(error instanceof Error ? error.message : 'Failed to fetch tokens')
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch tokens'
+      console.error('Token fetch error:', error)
+      setError(errorMessage)
     } finally {
       setIsLoading(false)
     }
   }, [getProvider, setCachedData, updatePaginatedTokens])
 
   const goToPage = useCallback((page: number) => {
-    if (page >= 1 && page <= totalPages) {
+    if (page >= 1 && page <= totalPages && page !== currentPage) {
       setCurrentPage(page)
       updatePaginatedTokens(allTokens, page)
     }
-  }, [allTokens, totalPages, updatePaginatedTokens])
+  }, [allTokens, totalPages, currentPage, updatePaginatedTokens])
 
   const refreshTokens = useCallback(async () => {
     localStorage.removeItem(CACHE_KEY)
     await fetchAllTokens()
   }, [fetchAllTokens])
 
+  // Initialize data on mount
   useEffect(() => {
     const cachedTokens = getCachedData()
 
-    if (cachedTokens && cachedTokens.length > 0) {
+    if (cachedTokens?.length) {
+      console.log(`Loaded ${cachedTokens.length} tokens from cache`)
       setAllTokens(cachedTokens)
       updatePaginatedTokens(cachedTokens, 1)
       setCurrentPage(1)
@@ -152,6 +129,9 @@ export function useAllTokens() {
     error,
     refreshTokens,
     fetchAllTokens,
-    goToPage
+    goToPage,
+    totalTokens: allTokens.length,
+    hasNextPage: currentPage < totalPages,
+    hasPreviousPage: currentPage > 1
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import {
   Dialog,
   DialogContent,
@@ -9,20 +9,15 @@ import {
 } from '~/components/ui/dialog'
 import { Button } from '~/components/ui/button'
 import { Input } from '~/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '~/components/ui/select'
 import { Label } from '~/components/ui/label'
+import { Badge } from '~/components/ui/badge'
+import { Alert, AlertDescription } from '~/components/ui/alert'
+import { Separator } from '~/components/ui/separator'
+import { LoaderIcon, ShoppingCartIcon, AlertTriangleIcon, CoinsIcon, CopyIcon, ExternalLinkIcon } from 'lucide-react'
 import { toast } from 'sonner'
-import { useAnchorProvider } from '~/components/solana/solana-provider'
-
 import { useVRGDA } from '~/hooks/use-vrgda'
 import { useWallet } from '@solana/wallet-adapter-react'
-import type { TokenInfo } from '~/routes/token-details/index'
+import type { VRGDAInfo } from '~/lib/vrgda/index'
 
 interface BuyTokenModalProps {
   isOpen: boolean
@@ -31,7 +26,7 @@ interface BuyTokenModalProps {
   tokenSymbol: string
   tokenLogo: string
   currentPrice: number
-  mintInfo: TokenInfo
+  tokenInfo: VRGDAInfo
   buyAmount: string
   mintAddress: string
   setBuyAmount: (amount: string) => void
@@ -45,35 +40,22 @@ export function BuyTokenModal({
   tokenName,
   tokenSymbol,
   tokenLogo,
-  currentPrice,
+  tokenInfo,
   buyAmount,
   setBuyAmount,
-  mintInfo,
   onBuy,
   buyStatus,
   mintAddress
 }: BuyTokenModalProps) {
   const { connected, publicKey } = useWallet()
-  const provider = useAnchorProvider()
-  const { calculatePrice, isLoading } = useVRGDA()
-  const [fee, setFee] = useState<'standard' | 'priority'>('standard')
+  const { calculatePrice } = useVRGDA()
+  const [localAmount, setLocalAmount] = useState(buyAmount)
+  useEffect(() => {
+    setLocalAmount(buyAmount)
+  }, [buyAmount])
 
-  // Calculate total cost
-  const tokenAmount = parseFloat(buyAmount) || 0
-  const currentTotalAmount = Array.from({ length: parseInt(buyAmount) || 0 }, (_, i) => i + 1)
-    .reduce((total, amount) => total + calculatePrice({
-      targetPrice: mintInfo.targetPrice,
-      decayConstant: mintInfo.decayConstant,
-      r: mintInfo.r,
-      timePassed: 0,
-      tokensSold: mintInfo.tokensSold + amount,
-      reservePrice: mintInfo.reservePrice
-    }), 0)
-  const subtotal = parseFloat(currentTotalAmount.toFixed(6))
-  const total = subtotal
-
-  // Format numbers for display
   const formatNumber = (num: number, decimals: number = 6) => {
+    if (num == 0) return 0
     if (num < 0.000001) return num.toExponential(2)
     return num.toLocaleString(undefined, {
       minimumFractionDigits: 0,
@@ -81,136 +63,200 @@ export function BuyTokenModal({
     })
   }
 
+  const formatSOL = (value: number) => {
+    if (value == 0) return '0'
+    if (value < 0.0001) return value.toFixed(9)
+    if (value < 0.01) return value.toFixed(6)
+    if (value < 1) return value.toFixed(4)
+    return value.toFixed(2)
+  }
+
+  const tokenAmount = parseInt(localAmount) || 0
+  const maxPurchase = Math.min(tokenInfo.totalSupply - tokenInfo.tokensSold, 1000)
+
+  // Calculate total cost
+  const totalCost = tokenAmount > 0 ? Array.from({ length: tokenAmount }, (_, i) => {
+    return calculatePrice({
+      timePassed: 0,
+      tokensSold: tokenInfo.tokensSold + i,
+      targetPrice: tokenInfo.targetPrice,
+      decayConstant: tokenInfo.decayConstant,
+      r: tokenInfo.r,
+      reservePrice: tokenInfo.reservePrice
+    })
+  }).reduce((sum, price) => sum + price, 0) : 0
+
+  const averagePrice = tokenAmount > 0 ? totalCost / tokenAmount : 0
+
   const handleBuy = async () => {
-    if (!connected || !provider) {
+    if (!connected || !publicKey) {
       toast.error('Wallet not connected', {
         description: 'Please connect your wallet to continue.'
       })
       return
     }
 
-    if (tokenAmount <= 0) {
+    if (tokenAmount <= 0 || tokenAmount > maxPurchase) {
       toast.error('Invalid amount', {
-        description: 'Please enter a valid token amount.'
+        description: `Please enter a valid amount between 1 and ${formatNumber(maxPurchase, 0)}.`
       })
       return
     }
 
-    if (!publicKey) {
-      toast.error('WSOL mint not found', {
-        description: 'Please check your wallet settings.'
-      })
-      return
-    }
-
+    setBuyAmount(localAmount)
     await onBuy(tokenAmount)
   }
 
+  const handleClose = () => {
+    // Prevent closing during loading
+    if (buyStatus !== 'loading') {
+      onClose()
+    }
+  }
+
+  const copyToClipboard = useCallback((text: string, label: string) => {
+    navigator.clipboard.writeText(text)
+    toast.success(`${label} copied to clipboard`)
+  }, [])
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className='sm:max-w-[425px]'>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className='sm:max-w-[500px]'>
+        {/* Overlay loader when buying */}
+        {buyStatus === 'loading' && (
+          <div className="absolute inset-0 bg-background/80 backdrop-blur-sm z-50 flex items-center justify-center rounded-lg">
+            <div className="flex items-center gap-3">
+              <LoaderIcon className="h-6 w-6 animate-spin" />
+              <span className="text-sm font-medium">Processing transaction...</span>
+            </div>
+          </div>
+        )}
+
         <DialogHeader>
           <div className='flex items-center gap-3'>
-            {tokenLogo && (
-              <img
-                src={tokenLogo}
-                alt={tokenName}
-                className='w-8 h-8 rounded-full'
-              />
-            )}
-            <DialogTitle>Buy {tokenName}</DialogTitle>
-          </div>
-          <DialogDescription>
-            Current price: {formatNumber(currentPrice)} SOL per {tokenSymbol}
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className='grid gap-4 py-4'>
-          <div className='grid grid-cols-4 items-center gap-4'>
-            <Label htmlFor='amount' className='text-right'>
-              Amount
-            </Label>
-            <div className='col-span-3 flex gap-2'>
-              <Input
-                id='amount'
-                type='number'
-                value={buyAmount}
-                onChange={(e) => setBuyAmount(e.target.value)}
-                className='col-span-2'
-                placeholder='0.0'
-                min='0'
-                step='0.1'
-              />
-
-              <div className='bg-gray-100 dark:bg-gray-800 rounded-md px-3 py-2 flex items-center justify-center'>
-                {tokenSymbol}
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
+              {tokenLogo ? (
+                <img
+                  src={tokenLogo}
+                  alt={tokenName}
+                  className='w-10 h-10 rounded-full object-cover'
+                />
+              ) : (
+                <CoinsIcon className="w-5 h-5 text-primary-foreground" />
+              )}
+            </div>
+            <div className="flex-1">
+              <DialogTitle className="flex items-center gap-2">
+                Purchase {tokenName}
+                <Badge variant="secondary">{tokenSymbol}</Badge>
+              </DialogTitle>
+              <DialogDescription className="flex items-center justify-between">
+                <span>Current price: {formatSOL(tokenInfo.currentPrice)} SOL per token</span>
+              </DialogDescription>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs text-muted-foreground font-mono">
+                  {mintAddress.slice(0, 8)}...{mintAddress.slice(-8)}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => copyToClipboard(mintAddress, 'Token address')}
+                  className="h-5 w-5 p-0"
+                >
+                  <CopyIcon className="h-3 w-3" />
+                </Button>
+                <Button variant="ghost" size="sm" asChild className="h-5 w-5 p-0">
+                  <a
+                    href={`https://explorer.solana.com/address/${mintAddress}?cluster=devnet`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="View in Solana Explorer"
+                  >
+                    <ExternalLinkIcon className="h-3 w-3" />
+                  </a>
+                </Button>
               </div>
             </div>
           </div>
+        </DialogHeader>
 
-          {/* <div className='grid grid-cols-4 items-center gap-4'>
-            <Label htmlFor='fee' className='text-right'>
-              Network Fee
+        <div className='space-y-4'>
+          <Alert className='bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'>
+            <AlertTriangleIcon className='h-4 w-4 text-blue-600 dark:text-blue-500' />
+            <AlertDescription className="text-blue-700 dark:text-blue-400">
+              VRGDA pricing: Each token may have a different price based on current demand and time elapsed.
+            </AlertDescription>
+          </Alert>
+
+          <div className='space-y-2'>
+            <Label htmlFor='amount' className="flex items-center justify-between">
+              <span>Number of Tokens</span>
+              <span className="text-xs text-muted-foreground">
+                Max: {formatNumber(maxPurchase, 0)}
+              </span>
             </Label>
-            <Select
-              value={fee}
-              onValueChange={(value) =>
-                setFee(value as 'standard' | 'priority')
-              }
-            >
-              <SelectTrigger className='col-span-3'>
-                <SelectValue placeholder='Select fee' />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='standard'>
-                  Standard ({formatNumber(feeAmount, 8)} SOL)
-                </SelectItem>
-                <SelectItem value='priority'>
-                  Priority ({formatNumber(feeAmount * 2, 8)} SOL)
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div> */}
-        </div>
+            <Input
+              id='amount'
+              type='number'
+              value={localAmount}
+              onChange={(e) => setLocalAmount(e.target.value)}
+              placeholder='Enter amount'
+              min='1'
+              max={maxPurchase.toString()}
+              disabled={buyStatus === 'loading'} // Disable input during loading
+            />
+          </div>
 
-        <div className='mt-4 space-y-2 rounded-md bg-gray-50 dark:bg-gray-900 p-3'>
-          {/* <div className='flex justify-between text-sm'>
-            <span>Subtotal</span>
-            <span>{formatNumber(subtotal)} SOL</span>
-          </div>
-          <div className='flex justify-between text-sm'>
-            <span>Network Fee</span>
-            <span>{formatNumber(feeAmount, 8)} SOL</span>
-          </div> */}
-          <div className='border-t border-gray-200 dark:border-gray-700 my-2'></div>
-          <div className='flex justify-between font-medium'>
-            <span>Total</span>
-            <span>{formatNumber(total)} SOL</span>
-          </div>
-        </div>
-        {/* </DialogContent> */}
-        {/* <DialogFooter> */}
-        <Button variant='outline' onClick={onClose}>
-          Cancel
-        </Button>
-        <Button
-          onClick={handleBuy}
-          disabled={isLoading || !connected || tokenAmount <= 0}
-          className="bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600"
-        >
-          {isLoading ? (
-            <div className='flex items-center gap-2'>
-              <div className='h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent'></div>
-              <span>Processing...</span>
+          {tokenAmount > 0 && (
+            <div className='space-y-3 rounded-lg border bg-muted/50 p-4'>
+              <div className='flex justify-between text-sm'>
+                <span className="text-muted-foreground">Quantity</span>
+                <span className="font-medium">{formatNumber(tokenAmount, 0)} {tokenSymbol}</span>
+              </div>
+              <div className='flex justify-between text-sm'>
+                <span className="text-muted-foreground">Average Price</span>
+                <span className="font-medium">{formatSOL(averagePrice)} SOL</span>
+              </div>
+              <div className='flex justify-between text-sm'>
+                <span className="text-muted-foreground">Current Token Price</span>
+                <span className="font-medium">{formatSOL(tokenInfo.currentPrice)} SOL</span>
+              </div>
+              <Separator />
+              <div className='flex justify-between font-medium text-base'>
+                <span>Total Cost</span>
+                <span>{formatSOL(totalCost)} SOL</span>
+              </div>
             </div>
-          ) : (
-            `Buy ${tokenSymbol}`
           )}
-        </Button>
-        {/* </DialogFooter> */}
-      </DialogContent>
+        </div>
 
-    </Dialog >
+        <DialogFooter className="flex gap-2">
+          <Button
+            variant='outline'
+            onClick={handleClose}
+            disabled={buyStatus === 'loading'}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={handleBuy}
+            disabled={buyStatus === 'loading' || !connected || tokenAmount <= 0 || tokenAmount > maxPurchase}
+            className="min-w-[120px]"
+          >
+            {buyStatus === 'loading' ? (
+              <div className='flex items-center gap-2'>
+                <LoaderIcon className='h-4 w-4 animate-spin' />
+                <span>Processing...</span>
+              </div>
+            ) : (
+              <div className='flex items-center gap-2'>
+                <ShoppingCartIcon className='h-4 w-4' />
+                <span>Buy {tokenSymbol}</span>
+              </div>
+            )}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

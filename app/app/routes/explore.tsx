@@ -10,15 +10,12 @@ import { LAMPORTS_PER_SOL } from '@solana/web3.js'
 
 export const TokenCard = ({
   token,
-  onClick
 }: {
   token: TokenData
-  onClick: () => void
 }) => {
   return (
     <Card
       className='overflow-hidden hover:shadow-lg transition-shadow duration-300 cursor-pointer border-gray-200 dark:border-gray-800'
-      onClick={onClick}
       id='olw858'
     >
       <CardContent className='p-0' id='twj820'>
@@ -77,7 +74,7 @@ export const TokenCard = ({
           className='w-full bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600'
           id='4jreou'
         >
-          <Link to={`/token/${token.vrgda}`}>View Details</Link>
+          <Link to={`/token/${token.vrgdaAddress}`}>View Details</Link>
         </Button>
       </CardFooter>
     </Card>
@@ -98,11 +95,7 @@ export default function Explore() {
     )
   }, [tokens, allTokens, searchQuery])
 
-  const handleTokenClick = (token: TokenData) => {
-    navigate(href('/token/:id', {
-      id: token.mintAddress
-    }))
-  }
+
 
   return (
     <div className='space-y-8'>
@@ -153,9 +146,8 @@ export default function Explore() {
       <div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6'>
         {filteredTokens.map((token) => (
           <TokenCard
-            key={token.id}
+            key={token.vrgdaAddress}
             token={token}
-            onClick={() => handleTokenClick(token)}
           />
         ))}
       </div>
