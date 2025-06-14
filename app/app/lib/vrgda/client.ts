@@ -223,15 +223,6 @@ export class VRGDAClient {
     const targetPriceWad = TokenAmountUtils.toPriceWadBN(params.targetPrice)
     const vrgdaStartTimestamp = new BN(params.vrgdaStartTimestamp || 0)
 
-
-    console.log('data',[ targetPriceWad,
-        new BN(Math.floor(params.decayConstant * 100)),
-        vrgdaStartTimestamp,
-        new BN(TokenAmountUtils.toProgram(params.totalSupply)),
-        new BN(params.r),
-        params.name,
-        params.symbol,
-        params.uri].map(x => x.toString()))
     const initVrgdaIx = await this.program.methods
       .initializeVrgda(
         targetPriceWad,
@@ -371,14 +362,14 @@ export class VRGDAClient {
     }
 
     // Add SOL to WSOL ATA and sync
-    preInstructions.push(
-      SystemProgram.transfer({
-        fromPubkey: buyer,
-        toPubkey: accounts.buyerWsolAta,
-        lamports: requiredLamports + LAMPORTS_PER_SOL / 2, // Add extra for fees
-      }),
-      createSyncNativeInstruction(accounts.buyerWsolAta, TOKEN_PROGRAM_ID)
-    )
+    // preInstructions.push(
+    //   SystemProgram.transfer({
+    //     fromPubkey: buyer,
+    //     toPubkey: accounts.buyerWsolAta,
+    //     lamports: requiredLamports + LAMPORTS_PER_SOL / 2, // Add extra for fees
+    //   }),
+    //   createSyncNativeInstruction(accounts.buyerWsolAta, TOKEN_PROGRAM_ID)
+    // )
 
     return preInstructions
   }

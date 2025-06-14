@@ -214,6 +214,18 @@ pub mod vrgda {
         let authority_key = ctx.accounts.vrgda.authority;
         let bump = ctx.accounts.vrgda.bump;
 
+        // Transfer SOL from buyer to their WSOL ATA to fund the purchase
+        anchor_lang::system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.buyer_wsol_ata.to_account_info(),
+                },
+            ),
+            vrgda.current_price,
+        )?;
+
         // transfer from buyer to vrgda_wallet
         transfer_checked(
             CpiContext::new(
