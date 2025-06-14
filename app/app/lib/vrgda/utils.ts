@@ -6,7 +6,7 @@ import type { VRGDAPriceCalculationParams } from './types'
 
 /**
  * Calculate VRGDA price for amount using geometric series (matches Rust implementation)
- * Uses direct power operations instead of exp/ln
+ * Follows the exact logic from vrgda_price_for_amount in state.rs
  */
 export function calculateVRGDAPriceForAmount(
   timePassed: number,
@@ -16,26 +16,73 @@ export function calculateVRGDAPriceForAmount(
   decayConstant: number,
   r: number
 ): number {
-  // 1) Target sale time for next token: f_inv = (sold + 1) / r
-  const nextTokenIndex = sold === 0 ? Math.min(amount, r) : sold + 1
-  const targetSaleTime = nextTokenIndex / r
+  console.log('Input params:', { timePassed, sold, amount, targetPrice, decayConstant, r })
 
-  const timeDeviation = timePassed - targetSaleTime
+  // 1) elapsed_wad = timePassed (already in seconds)
+  const elapsedWad = timePassed
+  console.log('ELAPSED TIME:', elapsedWad)
 
-  const oneMinusK = 1 - decayConstant
-
-  const nextTokenPrice = targetPrice * Math.pow(oneMinusK, timeDeviation)
-
-  const q = Math.pow(oneMinusK, -1 / r)
-
-  if (Math.abs(q - 1) < 1e-10) {
-    return amount * nextTokenPrice
+  // 2) target time calculation - matches Rust logic
+  let fInvWad: number
+  if (sold === 0) {
+    const n = Math.min(amount, r)
+    fInvWad = n / r  // get_target_sale_time_precise logic
+  } else {
+    fInvWad = (sold + 1) / r  // get_target_sale_time_precise(scaled_sold + 1)
   }
+  console.log('f_inv_wad:', fInvWad)
 
-  const qPowAmount = Math.pow(q, amount)
-  const totalCost = nextTokenPrice * (qPowAmount - 1) / (q - 1)
+  // 3) normalized (t − S/r) = (elapsed_wad − f_inv_wad)
+  const tMinusSr = elapsedWad - fInvWad
+  console.log('t_minus_sr:', tMinusSr)
 
-  return Math.max(totalCost, 0)
+  const kWad = decayConstant
+  console.log('k_wad:', kWad)
+
+  const oneMinusK = 1 - kWad
+  console.log('one_minus_k:', oneMinusK)
+
+  const ln1k = Math.log(oneMinusK)
+  if (ln1k >= 0) {
+    throw new Error('LogError: ln(1-k) must be negative')
+  }
+  console.log('ln1k:', ln1k)
+
+  const p0 = targetPrice
+  console.log('p0:', p0)
+
+  const rawExp = ln1k * tMinusSr
+  console.log('RAW EXPONENT:', rawExp)
+
+  const nextMul = Math.exp(rawExp)
+  console.log('next_mul:', nextMul)
+
+  const pS1 = p0 * nextMul
+  console.log('p_s1:', pS1)
+
+  // 8) geometric ratio q = (1−k)^(−1/r)
+  const invR = 1 / r
+  console.log('inv_r:', invR)
+
+  const negLn1k = -ln1k
+  console.log('neg_ln1k:', negLn1k)
+
+  const q = Math.exp(negLn1k * invR)
+  console.log('q:', q)
+
+  const amountPrecise = amount
+  console.log('amount_precise:', amountPrecise)
+
+  // 9) sum of m terms: p_s1 * (q^m - 1) / (q - 1)
+  const qPowM = Math.pow(q, amountPrecise)
+  console.log('Q_POW_M:', qPowM)
+
+  const numerator = pS1 * (qPowM - 1)
+  const denom = q - 1
+  const totalCost = numerator / denom
+  console.log('total_cost:', totalCost)
+
+  return Math.max(totalCost / 10e9, 0)
 }
 
 /**

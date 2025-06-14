@@ -493,6 +493,7 @@ export class VRGDAClient {
 
   // Utility methods
   calculatePrice = calculatePrice
+  calculateVRGDAPriceForAmount = calculateVRGDAPriceForAmount
 
   getProgramId(): PublicKey {
     return this.program.programId

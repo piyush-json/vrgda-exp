@@ -108,6 +108,28 @@ export function useVRGDA() {
     return await vrgdaClient.getVRGDAInfo(vrgdaAddress)
   }
 
+  const calculateVRGDAPriceForAmount = (amount: number, params: {
+    timePassed: number
+    tokensSold: number
+    targetPrice: number
+    decayConstant: number
+    r: number
+    reservePrice?: number
+  }): number => {
+    if (!vrgdaClient) return 0
+    const vval = vrgdaClient.calculateVRGDAPriceForAmount(
+      params.timePassed,
+      params.tokensSold,
+      amount,
+      params.targetPrice,
+      params.decayConstant,
+      params.r,
+    )
+
+    console.log(vval, 'VRGDA price for amount:', amount)
+    return vval
+  }
+
   return {
     isLoading,
     initializeVRGDA,
@@ -115,6 +137,7 @@ export function useVRGDA() {
     calculatePrice,
     getVrgdaInfo,
     vrgdaClient, // Expose the client for advanced usage
+    calculateVRGDAPriceForAmount
   }
 }
 

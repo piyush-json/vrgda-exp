@@ -48,7 +48,7 @@ export function BuyTokenModal({
   mintAddress
 }: BuyTokenModalProps) {
   const { connected, publicKey } = useWallet()
-  const { calculatePrice } = useVRGDA()
+  const { calculateVRGDAPriceForAmount } = useVRGDA()
   const [localAmount, setLocalAmount] = useState(buyAmount)
   useEffect(() => {
     setLocalAmount(buyAmount)
@@ -75,17 +75,15 @@ export function BuyTokenModal({
   const maxPurchase = Math.min(tokenInfo.totalSupply - tokenInfo.tokensSold, 10000000000)
 
   // Calculate total cost
-  const totalCost = tokenAmount > 0 ? Array.from({ length: tokenAmount }, (_, i) => {
-    const timePassed = Date.now() / 1000 - tokenInfo.startTime
-    return calculatePrice({
-      timePassed,
-      tokensSold: tokenInfo.tokensSold + i,
-      targetPrice: tokenInfo.targetPrice,
-      decayConstant: tokenInfo.decayConstant,
-      r: tokenInfo.r,
-      reservePrice: tokenInfo.reservePrice
-    })
-  }).reduce((sum, price) => sum + price, 0) : 0
+  const totalCost = tokenAmount > 0 ? calculateVRGDAPriceForAmount(
+    tokenAmount, {
+    decayConstant: tokenInfo.decayConstant,
+    r: tokenInfo.r,
+    targetPrice: tokenInfo.targetPrice,
+    timePassed: tokenInfo.timePassed,
+    tokensSold: tokenInfo.tokensSold,
+  }
+  ) : 0
 
   const averagePrice = tokenAmount > 0 ? totalCost / tokenAmount : 0
 
