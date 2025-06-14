@@ -26,7 +26,8 @@ export const TokenCard = ({
             </Avatar>
             <div className='flex-1' id='zbdgpq'>
               <h3 className='font-bold text-lg mb-1' id='31vutd'>
-                {token.symbol || 'Token'}
+                {token.metadata.symbol || 'Token'}
+                <span className='text-sm text-gray-500 dark:text-gray-400'>({token.metadata.name})</span>
               </h3>
               <p
                 className='text-[11px] text-gray-500 dark:text-gray-400 font-mono break-all'
@@ -41,7 +42,7 @@ export const TokenCard = ({
             <div className='grid grid-cols-2 gap-2 text-sm'>
               <div>
                 <p className='text-gray-500 dark:text-gray-400'>Reserve Price</p>
-                <p className='font-semibold'>{parseInt(token.reservePrice) / LAMPORTS_PER_SOL}</p>
+                <p className='font-semibold'>{token.reservePrice / LAMPORTS_PER_SOL}</p>
               </div>
               <div>
                 <p className='text-gray-500 dark:text-gray-400'>Total Supply</p>
@@ -51,10 +52,10 @@ export const TokenCard = ({
                 <p className='text-gray-500 dark:text-gray-400'>Tokens Sold</p>
                 <p className='font-semibold'>{token.tokensSold || 0}</p>
               </div>
-              <div>
+              {/* <div>
                 <p className='text-gray-500 dark:text-gray-400'>Duration (days)</p>
                 <p className='font-semibold'>{token.auctionDurationDays}</p>
-              </div>
+              </div> */}
             </div>
             <div className='pt-2 border-t border-gray-200 dark:border-gray-700'>
               <p className='text-xs text-gray-500 dark:text-gray-400'>Decay Constant</p>

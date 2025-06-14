@@ -54,7 +54,7 @@ export function PriceChart({ auctionData }: PriceChartProps) {
             <TrendingDownIcon className="h-5 w-5" />
             VRGDA Price Decay Curve
           </CardTitle>
-          <Badge variant="outline">{auctionData.length} Day Projection</Badge>
+          <Badge variant="outline">{auctionData.length} Hour Projection</Badge>
         </div>
       </CardHeader>
       <CardContent>
@@ -65,72 +65,72 @@ export function PriceChart({ auctionData }: PriceChartProps) {
               color: "#3b82f6",
             }
           }}>
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={auctionData} margin={{ top: 10, right: 10, left: 10, bottom: 40 }}>
-                <defs>
-                  <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  stroke="#e5e7eb"
-                  opacity={0.7}
-                />
-                <XAxis
-                  dataKey='time'
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: '#6b7280' }}
-                  label={{
-                    value: 'Days',
-                    position: 'insideBottom',
-                    offset: -10,
-                    style: { textAnchor: 'middle', fill: '#374151', fontWeight: 500 }
+            {/* <ResponsiveContainer width="100%" height="100%"> */}
+            <LineChart data={auctionData} margin={{ top: 10, right: 10, left: 10, bottom: 40 }}>
+              <defs>
+                <linearGradient id="priceGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid
+                strokeDasharray="3 3"
+                stroke="#e5e7eb"
+                opacity={0.7}
+              />
+              <XAxis
+                dataKey='time'
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: '#6b7280' }}
+                label={{
+                  value: 'Hours',
+                  position: 'insideBottom',
+                  offset: -10,
+                  style: { textAnchor: 'middle', fill: '#374151', fontWeight: 500 }
+                }}
+              />
+              <YAxis
+                axisLine={false}
+                tickLine={false}
+                tick={{ fontSize: 12, fill: '#6b7280' }}
+                tickFormatter={(value) => formatNumber(value, 4)}
+                domain={[Math.max(minPrice - (priceRange * 0.1), 0), maxPrice + (priceRange * 0.1)]}
+                label={{
+                  value: 'Price (SOL)',
+                  angle: -90,
+                  position: 'insideLeft',
+                  style: { textAnchor: 'middle', fill: '#374151', fontWeight: 500 }
+                }}
+              />
+              <ChartTooltip
+                content={<ChartTooltipContent
+                  labelFormatter={(value) => `Hour ${value}`}
+                  formatter={(value: any) => [formatNumber(value, 6) + ' SOL']}
+                  contentStyle={{
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '8px',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                   }}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: '#6b7280' }}
-                  tickFormatter={(value) => formatNumber(value, 4)}
-                  domain={[Math.max(minPrice - (priceRange * 0.1), 0), maxPrice + (priceRange * 0.1)]}
-                  label={{
-                    value: 'Price (SOL)',
-                    angle: -90,
-                    position: 'insideLeft',
-                    style: { textAnchor: 'middle', fill: '#374151', fontWeight: 500 }
-                  }}
-                />
-                <ChartTooltip
-                  content={<ChartTooltipContent
-                    labelFormatter={(value) => `Day ${value}`}
-                    formatter={(value: any) => [formatNumber(value, 6) + ' SOL']}
-                    contentStyle={{
-                      backgroundColor: '#ffffff',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
-                    }}
-                  />}
-                />
-                <Line
-                  type='monotone'
-                  dataKey='price'
-                  stroke='#3b82f6'
-                  strokeWidth={3}
-                  dot={false}
-                  activeDot={{
-                    r: 6,
-                    fill: '#3b82f6',
-                    stroke: '#ffffff',
-                    strokeWidth: 2,
-                  }}
-                  fill="url(#priceGradient)"
-                />
-              </LineChart>
-            </ResponsiveContainer>
+                />}
+              />
+              <Line
+                type='monotone'
+                dataKey='price'
+                stroke='#3b82f6'
+                strokeWidth={3}
+                dot={false}
+                activeDot={{
+                  r: 6,
+                  fill: '#3b82f6',
+                  stroke: '#ffffff',
+                  strokeWidth: 2,
+                }}
+                fill="url(#priceGradient)"
+              />
+            </LineChart>
+            {/* </ResponsiveContainer> */}
           </ChartContainer>
         </div>
         <div className=" text-sm text-muted-foreground">

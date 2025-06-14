@@ -62,17 +62,18 @@ export default function TokenDetails({ params }: Route.ComponentProps) {
   // Memoize price data generation function
   const generatePriceData = useCallback((info: VRGDAInfo) => {
     const data = []
-    const daysToShow = 7 // Show 7 days of price decay
-
-    for (let i = 0; i < daysToShow; i++) {
-      const timeElapsed = i * 24 * 60 * 60 // i days in seconds
+    const hoursToShow = 5
+    console.log('Generating price data for:', info)
+    for (let i = 0; i < hoursToShow; i++) {
+      const timePassed =
+        info.startTime + i * 60 * 60 // i hours in seconds
+      console.log(`Calculating price for hour ${i}:`, timePassed)
       const price = calculatePrice({
-        timePassed: timeElapsed,
+        timePassed,
         tokensSold: info.tokensSold,
         targetPrice: info.targetPrice,
         decayConstant: info.decayConstant,
         r: info.r,
-        reservePrice: info.reservePrice
       })
 
       data.push({
@@ -272,7 +273,7 @@ export default function TokenDetails({ params }: Route.ComponentProps) {
                       </Button>
                       <Button variant="outline" size="sm" asChild>
                         <a
-                          href={`https://explorer.solana.com/address/${tokenId}?cluster=devnet`}
+                          href={`https://explorer.solana.com/address/${tokenInfo.mintAddress}?cluster=devnet`}
                           target="_blank"
                           rel="noopener noreferrer"
                         >

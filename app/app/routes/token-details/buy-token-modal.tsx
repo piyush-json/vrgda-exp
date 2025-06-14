@@ -72,12 +72,13 @@ export function BuyTokenModal({
   }
 
   const tokenAmount = parseInt(localAmount) || 0
-  const maxPurchase = Math.min(tokenInfo.totalSupply - tokenInfo.tokensSold, 1000)
+  const maxPurchase = Math.min(tokenInfo.totalSupply - tokenInfo.tokensSold, 10000000000)
 
   // Calculate total cost
   const totalCost = tokenAmount > 0 ? Array.from({ length: tokenAmount }, (_, i) => {
+    const timePassed = Date.now() / 1000 - tokenInfo.startTime
     return calculatePrice({
-      timePassed: 0,
+      timePassed,
       tokensSold: tokenInfo.tokensSold + i,
       targetPrice: tokenInfo.targetPrice,
       decayConstant: tokenInfo.decayConstant,

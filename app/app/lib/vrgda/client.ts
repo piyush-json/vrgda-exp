@@ -223,13 +223,22 @@ export class VRGDAClient {
     const targetPriceWad = TokenAmountUtils.toPriceWadBN(params.targetPrice)
     const vrgdaStartTimestamp = new BN(params.vrgdaStartTimestamp || 0)
 
+
+    console.log('data',[ targetPriceWad,
+        new BN(Math.floor(params.decayConstant * 100)),
+        vrgdaStartTimestamp,
+        new BN(TokenAmountUtils.toProgram(params.totalSupply)),
+        new BN(params.r),
+        params.name,
+        params.symbol,
+        params.uri].map(x => x.toString()))
     const initVrgdaIx = await this.program.methods
       .initializeVrgda(
         targetPriceWad,
         new BN(Math.floor(params.decayConstant * 100)),
         vrgdaStartTimestamp,
         new BN(TokenAmountUtils.toProgram(params.totalSupply)),
-        new BN(TokenAmountUtils.toProgram(params.r)),
+        new BN(params.r),
         params.name,
         params.symbol,
         params.uri
@@ -267,7 +276,6 @@ export class VRGDAClient {
     const vrgdaAccount = await this.program.account.vrgda.fetch(vrgda)
     const { mint, authority } = vrgdaAccount
     const { totalCost, requiredLamports } = this.calculateBuyCost(vrgdaAccount, params.amount)
-
     // Setup token accounts
     const accounts = await this.setupBuyAccounts(buyer, mint, vrgda, authority)
 
@@ -308,7 +316,7 @@ export class VRGDAClient {
   }
 
   private calculateBuyCost(vrgdaAccount: any, amount: number): { totalCost: number; requiredLamports: number } {
-    const r = TokenAmountUtils.fromProgram(Number(vrgdaAccount.schedule.linearSchedule.r.toString()))
+    const r = Number(vrgdaAccount.schedule.linearSchedule.r.toString())
     const targetPrice = TokenAmountUtils.fromPriceWad(Number(vrgdaAccount.targetPrice.toString()))
     const decayConstant = Number(vrgdaAccount.decayConstantPercent.toString()) / 100
     const tokensSold = TokenAmountUtils.fromProgram(Number(vrgdaAccount.tokensSold.toString()))
@@ -395,7 +403,7 @@ export class VRGDAClient {
     const totalSupply = TokenAmountUtils.fromProgram(Number(vrgdaAccount.totalSupply.toString()) + tokenSoldProgram)
     const remainingSupply = totalSupply - tokensSold
 
-    const r = TokenAmountUtils.fromProgram(Number(vrgdaAccount.schedule.linearSchedule.r.toString()))
+    const r = Number(vrgdaAccount.schedule.linearSchedule.r.toString())
     const targetPrice = TokenAmountUtils.fromPriceWad(Number(vrgdaAccount.targetPrice.toString()))
     const currentPrice = TokenAmountUtils.fromPriceWad(vrgdaAccount.currentPrice.toNumber())
     const decayConstant = Number(vrgdaAccount.decayConstantPercent.toString()) / 100
