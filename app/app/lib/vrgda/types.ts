@@ -1,6 +1,9 @@
 import { PublicKey, Keypair } from '@solana/web3.js'
 
 export interface VRGDAInitParams {
+  name: string
+  symbol: string
+  uri: string
   mint: Keypair
   targetPrice: number
   decayConstant: number

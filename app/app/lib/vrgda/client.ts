@@ -11,19 +11,17 @@ import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAssociatedTokenAddress,
   MINT_SIZE,
-  createSetAuthorityInstruction,
-  AuthorityType,
   createInitializeMint2Instruction,
   createAssociatedTokenAccountIdempotentInstruction,
   getMint,
   getMinimumBalanceForRentExemptMint,
   createSyncNativeInstruction,
-  createMintToInstruction
 } from '@solana/spl-token'
+import { deserializeMetadata } from '@metaplex-foundation/mpl-token-metadata'
 
 import type { Vrgda } from 'idl/types/vrgda'
 import vrgdaIdl from 'idl/idl/vrgda.json'
-import { WSOL_MINT, DEFAULT_PAGINATION_LIMIT, MAX_PAGINATION_LIMIT, AUCTION_DURATION_DAYS } from './constants'
+import { WSOL_MINT, DEFAULT_PAGINATION_LIMIT, MAX_PAGINATION_LIMIT, AUCTION_DURATION_DAYS, TOKEN_METADATA_PROGRAM_ID } from './constants'
 import type {
   VRGDAInitParams,
   VRGDABuyParams,
@@ -88,6 +86,16 @@ export class VRGDAClient {
     const [vrgdaPda] = findVRGDAPDA(mintPublic, authority)
     await this.validateVRGDADoesNotExist(vrgdaPda)
 
+
+    // get metadata public key
+    const [metadata] = await PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('metadata'),
+        TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+        mintPublic.toBuffer(),
+      ],
+      TOKEN_METADATA_PROGRAM_ID
+    )
     // Setup token accounts
     const { vrgdaVault, vrgdaSolAta } = await this.setupTokenAccounts(
       transaction,
@@ -105,11 +113,10 @@ export class VRGDAClient {
       vrgdaPda,
       vrgdaVault,
       vrgdaSolAta,
-      mintPublic
+      mintPublic,
+      metadata,
+      TOKEN_METADATA_PROGRAM_ID
     )
-
-    // Mint tokens and transfer authority
-    this.addPostInitializationInstructions(transaction, mintPublic, vrgdaVault, authority, vrgdaPda, params.totalSupply)
 
     const tx = await this.provider.sendAndConfirm(transaction, [params.mint], { maxRetries: 3 })
     const txUrl = await this.confirmTransaction(tx)
@@ -208,7 +215,9 @@ export class VRGDAClient {
     vrgdaPda: PublicKey,
     vrgdaVault: PublicKey,
     vrgdaSolAta: PublicKey,
-    mintPublic: PublicKey
+    mintPublic: PublicKey,
+    metadata: PublicKey,
+    metadataProgram: PublicKey
   ): Promise<void> {
     const wsolMintPubkey = params.wsolMint || WSOL_MINT
     const targetPriceWad = TokenAmountUtils.toPriceWadBN(params.targetPrice)
@@ -220,7 +229,10 @@ export class VRGDAClient {
         new BN(Math.floor(params.decayConstant * 100)),
         vrgdaStartTimestamp,
         new BN(TokenAmountUtils.toProgram(params.totalSupply)),
-        new BN(TokenAmountUtils.toProgram(params.r))
+        new BN(TokenAmountUtils.toProgram(params.r)),
+        params.name,
+        params.symbol,
+        params.uri
       )
       .accountsStrict({
         authority,
@@ -228,6 +240,8 @@ export class VRGDAClient {
         vrgdaVault,
         mint: mintPublic,
         vrgdaSolAta,
+        metadataProgram,
+        metadata,
         wsolMint: wsolMintPubkey,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
@@ -238,39 +252,6 @@ export class VRGDAClient {
       .instruction()
 
     transaction.add(initVrgdaIx)
-  }
-
-  private addPostInitializationInstructions(
-    transaction: Transaction,
-    mintPublic: PublicKey,
-    vrgdaVault: PublicKey,
-    authority: PublicKey,
-    vrgdaPda: PublicKey,
-    totalSupply: number
-  ): void {
-    // Mint tokens to VRGDA vault
-    transaction.add(
-      createMintToInstruction(
-        mintPublic,
-        vrgdaVault,
-        authority,
-        TokenAmountUtils.toProgram(totalSupply),
-        [],
-        TOKEN_PROGRAM_ID
-      )
-    )
-
-    // Transfer mint authority to VRGDA PDA
-    transaction.add(
-      createSetAuthorityInstruction(
-        mintPublic,
-        authority,
-        AuthorityType.MintTokens,
-        vrgdaPda,
-        [],
-        TOKEN_PROGRAM_ID
-      )
-    )
   }
 
   async buyTokens(params: VRGDABuyParams): Promise<VRGDABuyResult> {
@@ -398,12 +379,12 @@ export class VRGDAClient {
     const vrgda = typeof vrgdaAddress === 'string' ? new PublicKey(vrgdaAddress) : vrgdaAddress
     const vrgdaAccount = await this.program.account.vrgda.fetch(vrgda)
 
-    return this.transformVRGDAAccountToInfo(vrgda, vrgdaAccount)
+    return await this.transformVRGDAAccountToInfo(vrgda, vrgdaAccount)
   }
 
-  private transformVRGDAAccountToInfo(vrgda: PublicKey, vrgdaAccount:
+  private async transformVRGDAAccountToInfo(vrgda: PublicKey, vrgdaAccount:
     Awaited<ReturnType<typeof this.program.account.vrgda.fetch>>
-  ): VRGDAInfo {
+  ): Promise<VRGDAInfo> {
     const mint = vrgdaAccount.mint
     const currentTime = Math.floor(Date.now() / 1000)
     const startTime = Number(vrgdaAccount.vrgdaStartTimestamp.toString())
@@ -418,6 +399,32 @@ export class VRGDAClient {
     const targetPrice = TokenAmountUtils.fromPriceWad(Number(vrgdaAccount.targetPrice.toString()))
     const currentPrice = TokenAmountUtils.fromPriceWad(vrgdaAccount.currentPrice.toNumber())
     const decayConstant = Number(vrgdaAccount.decayConstantPercent.toString()) / 100
+
+    // Fetch and parse metadata
+    const [metadataPDA] = await PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('metadata'),
+        TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+        mint.toBuffer(),
+      ],
+      TOKEN_METADATA_PROGRAM_ID
+    )
+    console.log(mint.toBase58(), metadataPDA.toBase58())
+    const metadataAccount = await this.connection.getAccountInfo(metadataPDA)
+    let metadata = null
+    if (metadataAccount && metadataAccount.data) {
+      try {
+        // @ts-ignore correct according to mpl-token-metadata docs
+        const meta = deserializeMetadata(metadataAccount);
+        metadata = {
+          name: meta.name,
+          symbol: meta.symbol,
+          uri: meta.uri,
+        }
+      } catch (parseError) {
+        console.warn('Failed to parse metadata:', parseError)
+      }
+    }
 
     return {
       vrgdaAddress: vrgda.toString(),
@@ -436,7 +443,7 @@ export class VRGDAClient {
       auctionEndTime: startTime + (AUCTION_DURATION_DAYS * 24 * 60 * 60),
       isAuctionActive: !vrgdaAccount.auctionEnded,
       reservePrice: 0,
-      metadata: {
+      metadata: metadata || {
         name: 'VRGDA Token',
         symbol: 'VRGDA',
         uri: ''
@@ -447,8 +454,10 @@ export class VRGDAClient {
   async getAllVRGDATokens(): Promise<VRGDAInfo[]> {
     try {
       const vrgdaAccounts = await this.program.account.vrgda.all()
-      const tokens = vrgdaAccounts.map(account =>
-        this.transformVRGDAAccountToInfo(account.publicKey, account.account)
+      const tokens = await Promise.all(
+        vrgdaAccounts.map(account =>
+          this.transformVRGDAAccountToInfo(account.publicKey, account.account)
+        )
       )
 
       // Sort by start time (newest first)

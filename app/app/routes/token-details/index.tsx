@@ -43,6 +43,7 @@ export default function TokenDetails({ params }: Route.ComponentProps) {
 
   // Memoize utility functions to prevent re-creation on every render
   const formatNumber = useCallback((num: number, decimals: number = 6) => {
+    if (num === 0) return '0'
     if (num < 0.000001) return num.toExponential(2)
     return num.toLocaleString(undefined, {
       minimumFractionDigits: 0,

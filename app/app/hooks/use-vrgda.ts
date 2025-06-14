@@ -16,7 +16,7 @@ import {
 } from '~/lib/vrgda/index'
 
 export const VRGDA_PROGRAM_ID = new PublicKey(
-  import.meta.env.VITE_PROGRAM_ID || '9rUZoTzHGK7SJ9jfAzVLaYW9uMv1YkA6pQcby1tFGRZb'
+  import.meta.env.VITE_PROGRAM_ID || '4JfrrwUKvDRaM5DZFsuKE1uMD591KhSGGq3wq75JGwP5'
 );
 
 export function getVrgdaProgramId(cluster: Cluster) {
@@ -47,20 +47,24 @@ export function useVRGDA() {
     decayConstant: number
     r: number
     totalSupply: number
+    name: string
+    symbol: string
     authority?: string
     vrgdaStartTimestamp?: number
     wsolMint?: string
+    uri: string
   }) => {
     if (!publicKey) throw new Error('Wallet not connected')
     if (!vrgdaClient) throw new Error('VRGDA client not initialized')
-
+    if (!params.uri)
+      params.uri = ''
     try {
       setIsLoading(true)
 
       const vrgdaParams: VRGDAInitParams = {
         ...params,
         authority: params.authority ? new PublicKey(params.authority) : publicKey,
-        wsolMint: params.wsolMint ? new PublicKey(params.wsolMint) : undefined
+        wsolMint: params.wsolMint ? new PublicKey(params.wsolMint) : undefined,
       }
 
       return await vrgdaClient.initializeVRGDA(vrgdaParams)

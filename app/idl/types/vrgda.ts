@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/vrgda.json`.
  */
 export type Vrgda = {
-  "address": "9rUZoTzHGK7SJ9jfAzVLaYW9uMv1YkA6pQcby1tFGRZb",
+  "address": "4JfrrwUKvDRaM5DZFsuKE1uMD591KhSGGq3wq75JGwP5",
   "metadata": {
     "name": "vrgda",
     "version": "0.1.0",
@@ -631,6 +631,14 @@ export type Vrgda = {
           "name": "wsolMint"
         },
         {
+          "name": "metadata",
+          "writable": true
+        },
+        {
+          "name": "metadataProgram",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        },
+        {
           "name": "systemProgram",
           "address": "11111111111111111111111111111111"
         },
@@ -666,6 +674,18 @@ export type Vrgda = {
         {
           "name": "r",
           "type": "u64"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "symbol",
+          "type": "string"
+        },
+        {
+          "name": "uri",
+          "type": "string"
         }
       ]
     }
