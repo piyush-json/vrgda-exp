@@ -1,26 +1,29 @@
 use anchor_lang::prelude::*;
 use anchor_spl::{
     associated_token::AssociatedToken,
-    token_interface::{Mint, TokenAccount, TokenInterface, transfer_checked},
+    token_interface::{transfer_checked, Mint, TokenAccount, TokenInterface},
 };
+use mpl_token_metadata::{types::Data, ID as METADATA_PROGRAM_ID};
 
 use anchor_spl::token_interface;
+pub mod error;
 pub mod math;
 pub mod state;
-pub mod error;
 
 use error::VRGDAError;
 use math::cast::Cast;
 use state::{Schedule, VRGDA};
-
 
 declare_id!("FLSsuUZXKnDYyfhjTF1GTkvFkyQctfxABEEjGZxc5FJZ");
 
 #[program]
 pub mod vrgda {
 
-    use anchor_spl::token_2022::TransferChecked;
-
+    use anchor_spl::{
+        metadata::{create_metadata_accounts_v3, CreateMetadataAccountsV3},
+        token_2022::TransferChecked,
+    };
+    use mpl_token_metadata::types::DataV2;
     use crate::math::to_actual_mint_amount;
 
     use super::*;
@@ -32,35 +35,111 @@ pub mod vrgda {
         vrgda_start_timestamp: i64,
         total_supply: u64,
         r: u64,
+        name: String,
+        symbol: String,
+        uri: String,
     ) -> Result<()> {
-        let vrgda = &mut ctx.accounts.vrgda;
-        vrgda.total_supply = total_supply;
-        vrgda.target_price = target_price;
-        vrgda.decay_constant_percent = decay_constant_percent; 
-        vrgda.schedule = Schedule::LinearSchedule { r };
-        vrgda.tokens_sold = 0;
-        vrgda.created_at_timestamp = Clock::get()?.unix_timestamp.cast::<i64>()?;
+        // let vrgda = &mut ctx.accounts.vrgda;
+        ctx.accounts.vrgda.total_supply = total_supply;
+        ctx.accounts.vrgda.target_price = target_price;
+        ctx.accounts.vrgda.decay_constant_percent = decay_constant_percent;
+        ctx.accounts.vrgda.schedule = Schedule::LinearSchedule { r };
+        ctx.accounts.vrgda.tokens_sold = 0;
+        ctx.accounts.vrgda.created_at_timestamp = Clock::get()?.unix_timestamp.cast::<i64>()?;
 
-        vrgda.vrgda_start_timestamp = if vrgda_start_timestamp < Clock::get()?.unix_timestamp.cast::<i64>()? {
-            Clock::get()?.unix_timestamp.cast::<i64>()?
-        } else {
-            vrgda_start_timestamp
+        ctx.accounts.vrgda.vrgda_start_timestamp =
+            if vrgda_start_timestamp < Clock::get()?.unix_timestamp.cast::<i64>()? {
+                Clock::get()?.unix_timestamp.cast::<i64>()?
+            } else {
+                vrgda_start_timestamp
+            };
+
+        ctx.accounts.vrgda.authority = ctx.accounts.authority.key();
+        ctx.accounts.vrgda.mint = ctx.accounts.mint.key();
+        ctx.accounts.vrgda.bump = ctx.bumps.vrgda;
+
+        let token_data = DataV2 {
+            name: name,
+            symbol: symbol,
+            uri: uri,
+            seller_fee_basis_points: 0,
+            creators: None,
+            collection: None,
+            uses: None,
         };
 
-        vrgda.authority = *ctx.accounts.authority.key;
-        vrgda.mint = ctx.accounts.mint.key();
-        vrgda.bump = ctx.bumps.vrgda;
+        let mint_seed = ctx.accounts.mint.key();
+        let authority_seed = ctx.accounts.authority.key();
 
-        msg!("VRGDA PDA: {:?}", vrgda.key());
-        msg!("VRGDA Mint: {:?}", vrgda.mint);
-        msg!("VRGDA Authority: {:?}", vrgda.authority);
+        let signer_seeds = &[
+            b"vrgda".as_ref(),
+            mint_seed.as_ref(),
+            authority_seed.as_ref(),
+            &[ctx.bumps.vrgda],
+        ];
+
+        let seeds = &[&signer_seeds[..]];
+
+        let metadata_ctx = CpiContext::new_with_signer(
+            ctx.accounts.metadata_program.to_account_info(),
+            CreateMetadataAccountsV3 {
+                metadata: ctx.accounts.metadata.to_account_info(),
+                mint: ctx.accounts.mint.to_account_info(),
+                mint_authority: ctx.accounts.authority.to_account_info(),
+                update_authority: ctx.accounts.authority.to_account_info(),
+                payer: ctx.accounts.authority.to_account_info(),
+                system_program: ctx.accounts.system_program.to_account_info(),
+                rent: ctx.accounts.rent.to_account_info(),
+            },
+            seeds,
+        );
+
+        create_metadata_accounts_v3(metadata_ctx, token_data, false, true, None)?;
+
+        token_interface::set_authority(
+            CpiContext::new(
+                ctx.accounts.token_program.to_account_info(),
+                anchor_spl::token_interface::SetAuthority {
+                    current_authority: ctx.accounts.authority.to_account_info(),
+                    account_or_mint: ctx.accounts.mint.to_account_info(),
+                },
+            ),
+            anchor_spl::token_interface::spl_token_2022::instruction::AuthorityType::MintTokens,
+            Some(ctx.accounts.vrgda.key()),
+        )?;
+
+        token_interface::mint_to(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                anchor_spl::token_interface::MintTo {
+                    mint: ctx.accounts.mint.to_account_info(),
+                    to: ctx.accounts.vrgda_vault.to_account_info(),
+                    authority: ctx.accounts.vrgda.to_account_info(),
+                },
+                seeds,
+            ),
+            total_supply,
+        )?;
+
+        msg!("VRGDA PDA: {:?}", ctx.accounts.vrgda.key());
+        msg!("VRGDA Mint: {:?}", ctx.accounts.vrgda.mint);
+        msg!("VRGDA Authority: {:?}", ctx.accounts.vrgda.authority);
         msg!("VRGDA VAULT: {:?}", ctx.accounts.vrgda_vault.key());
-        msg!("VRGDA TOTAL SUPPLY: {}", vrgda.total_supply);
-        msg!("VRGDA TARGET PRICE: {}", vrgda.target_price);
-        msg!("VRGDA DECAY CONSTANT: {}", vrgda.decay_constant_percent);
-        msg!("VRGDA SCHEDULE: {:?}", vrgda.schedule);
-        msg!("VRGDA CREATED AT TIMESTAMP: {}", vrgda.created_at_timestamp);
-        msg!("VRDGA START TIMESTAMP: {}", vrgda.vrgda_start_timestamp);
+        msg!("VRGDA TOTAL SUPPLY: {}", ctx.accounts.vrgda.total_supply);
+        msg!("VRGDA TARGET PRICE: {}", ctx.accounts.vrgda.target_price);
+        msg!(
+            "VRGDA DECAY CONSTANT: {}",
+            ctx.accounts.vrgda.decay_constant_percent
+        );
+        msg!("VRGDA SCHEDULE: {:?}", ctx.accounts.vrgda.schedule);
+        msg!(
+            "VRGDA CREATED AT TIMESTAMP: {}",
+            ctx.accounts.vrgda.created_at_timestamp
+        );
+        msg!(
+            "VRDGA START TIMESTAMP: {}",
+            ctx.accounts.vrgda.vrgda_start_timestamp
+        );
         Ok(())
     }
 
@@ -68,42 +147,44 @@ pub mod vrgda {
         {
             // First, update the VRGDA state in its own scope.
             let vrgda = &mut ctx.accounts.vrgda;
-            
+
             // Validate input
             require!(amount != 0, VRGDAError::AmountCantBeZero);
-            require!(amount < vrgda.total_supply, VRGDAError::AmountExceedsTotalSupply);
+            require!(
+                amount < vrgda.total_supply,
+                VRGDAError::AmountExceedsTotalSupply
+            );
             require!(vrgda.auction_ended == false, VRGDAError::AuctionEnded);
-            
+
             // Reduce total supply
             vrgda.total_supply = vrgda.total_supply.checked_sub(amount).unwrap();
-            
+
             // Special handling for the first purchase
             let now = Clock::get()?.unix_timestamp;
             let sold = vrgda.tokens_sold;
             let schedule = &vrgda.schedule;
-            
+
             msg!("Now: {}", now);
             msg!("Tokens sold before purchase: {}", sold);
             msg!("R val: {:?}", schedule);
-            
+
             let price_in_sol =
                 // Use the standard VRGDA pricing for subsequent purchases
                 vrgda.vrgda_price_for_amount(now, sold, amount)?;
-            
+
             // Update tokens sold after price calculation
             vrgda.tokens_sold = vrgda.tokens_sold.checked_add(amount).unwrap();
 
-
             // HALF is the constant 0.5 in wad
-            // let p0_wad = PreciseNumber { 
-            //     value: InnerUint::from(vrgda.target_price) 
+            // let p0_wad = PreciseNumber {
+            //     value: InnerUint::from(vrgda.target_price)
             // };
-            
+
             // 2) min = ½·p₀
             // let min_price_precise = p0_wad
             //     .checked_mul(&HALF)
             //     .unwrap();
-            
+
             // // 3) max = 1000 SOL in wad = 1000 × 10¹⁸
             // let max_price_precise = PreciseNumber {
             //     value: ONE_PREC.value
@@ -119,19 +200,31 @@ pub mod vrgda {
             // Scale the price for transfer
             let price_scaled_down = to_actual_mint_amount(&price_in_sol);
             msg!("Price in SOL: {:?}", price_scaled_down);
-            
+
             // Save the updated current_price in state
             vrgda.current_price = price_scaled_down;
         }
-    
+
         let vrgda = &ctx.accounts.vrgda;
         // Now, create the signer seeds using the (immutable) account data.
         let mint_key = ctx.accounts.vrgda.mint;
         let authority_key = ctx.accounts.vrgda.authority;
         let bump = ctx.accounts.vrgda.bump;
-    
-         // transfer from buyer to vrgda_wallet
-         transfer_checked(
+
+        // Transfer SOL from buyer to their WSOL ATA to fund the purchase
+        anchor_lang::system_program::transfer(
+            CpiContext::new(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.buyer.to_account_info(),
+                    to: ctx.accounts.buyer_wsol_ata.to_account_info(),
+                },
+            ),
+            vrgda.current_price,
+        )?;
+
+        // transfer from buyer to vrgda_wallet
+        transfer_checked(
             CpiContext::new(
                 ctx.accounts.token_program.to_account_info(),
                 TransferChecked {
@@ -144,7 +237,7 @@ pub mod vrgda {
             vrgda.current_price,
             ctx.accounts.wsol_mint.decimals,
         )?;
-        
+
         let vrgda_seeds = &[
             b"vrgda".as_ref(),
             mint_key.as_ref(),
@@ -152,7 +245,7 @@ pub mod vrgda {
             &[bump],
         ];
         let signer = &[&vrgda_seeds[..]];
-    
+
         // Call the CPI to mint tokens.
         token_interface::transfer_checked(
             CpiContext::new(
@@ -163,17 +256,21 @@ pub mod vrgda {
                     authority: ctx.accounts.vrgda.to_account_info(),
                     mint: ctx.accounts.mint.to_account_info(),
                 },
-            ).with_signer(signer),
+            )
+            .with_signer(signer),
             amount,
             ctx.accounts.mint.decimals,
         )?;
-    
+
         Ok(())
     }
 
-
+    
     pub fn close_auction(ctx: Context<CloseAuction>) -> Result<()> {
-        require!(ctx.accounts.vrgda.auction_ended == false, VRGDAError::AuctionEnded);
+        require!(
+            ctx.accounts.vrgda.auction_ended == false,
+            VRGDAError::AuctionEnded
+        );
         // Close the VRGDA account and transfer any remaining SOL to the authority.
         {
             let vrgda = &mut ctx.accounts.vrgda;
@@ -320,6 +417,14 @@ pub struct Initialize<'info> {
         mint::token_program = token_program,
     )]
     pub wsol_mint: InterfaceAccount<'info, Mint>,
+
+    /// CHECK: Validated by Metaplex - stores token metadata
+    #[account(mut)]
+    pub metadata: UncheckedAccount<'info>,
+
+    /// CHECK: This is the Metaplex Token Metadata program
+    #[account(address = METADATA_PROGRAM_ID)]
+    pub metadata_program: UncheckedAccount<'info>,
 
     pub system_program: Program<'info, System>,
     pub token_program: Interface<'info, TokenInterface>,
