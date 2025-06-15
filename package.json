@@ -6,7 +6,8 @@
     "start-validator": "solana-test-validator --reset --bpf-program metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s mpl/metaplex_token_metadata_program.so"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.31.0"
+    "@coral-xyz/anchor": "^0.31.0",
+    "@solana/web3.js": "^1.98.2"
   },
   "devDependencies": {
     "@solana/spl-token": "^0.4.13",

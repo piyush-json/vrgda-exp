@@ -9,7 +9,6 @@ import {
   Transaction,
   LAMPORTS_PER_SOL,
   ComputeBudgetProgram,
-  sendAndConfirmTransaction,
   Connection,
   SYSVAR_CLOCK_PUBKEY,
 } from "@solana/web3.js";
@@ -22,13 +21,9 @@ import {
   getAssociatedTokenAddress,
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
-  createAssociatedTokenAccountIdempotentInstructionWithDerivation,
   createAssociatedTokenAccountIdempotentInstruction,
-  createSetAuthorityInstruction,
-  AuthorityType,
 } from "@solana/spl-token";
 
-// Import the IDL directly to ensure we have the correct version
 
 describe("vrgda", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -77,7 +72,9 @@ describe("vrgda", () => {
   let buyerwSolAta: PublicKey;
   let buyer2wSolAta: PublicKey;
   let buyer3wSolAta: PublicKey;
-
+  const TOKEN_METADATA_PROGRAM_ID = new PublicKey(
+    "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+  );
   before("Airdrop, create mint, and compute associated addresses", async () => {
     // 1) Airdrop 20 SOL to each local Keypair so they can pay for creation.
     await confirmTx(await connection.requestAirdrop(authority.publicKey, 20 * LAMPORTS_PER_SOL));
@@ -90,7 +87,7 @@ describe("vrgda", () => {
     const lamportsForMint = await getMinimumBalanceForRentExemptMint(connection);
     let createMintTx = new Transaction().add(
       SystemProgram.createAccount({
-        fromPubkey: provider.publicKey, // The default anchor provider can pay for this
+        fromPubkey: authority.publicKey,
         newAccountPubkey: mintKeypair.publicKey,
         space: MINT_SIZE,
         lamports: lamportsForMint,
@@ -99,31 +96,19 @@ describe("vrgda", () => {
       createInitializeMint2Instruction(
         mintKeypair.publicKey,
         6, // decimals
-        provider.publicKey, // mint authority
+        authority.publicKey, // mint authority
         null,               // freeze authority
         TOKEN_PROGRAM_ID
       )
     );
 
-    // const transferAuthorityTx = new Transaction().add(
-    //   createSetAuthorityInstruction(
-    //     mintKeypair.publicKey,
-    //     authority.publicKey,             // Current authority (provider) 
-    //     AuthorityType.MintTokens,
-    //     vrgdaPda,                       // New authority
-    //     [],
-    //     TOKEN_PROGRAM_ID
-    //   )
-    // );
-    
-    await provider.sendAndConfirm(createMintTx, [mintKeypair]);
-    // await provider.sendAndConfirm(transferAuthorityTx), [mintKeypair, authority];
+    await provider.sendAndConfirm(createMintTx, [mintKeypair, authority]);
 
     const lamportsforsolmint = await getMinimumBalanceForRentExemptMint(connection);
 
     let createWSOLMINTtx = new Transaction().add(
       SystemProgram.createAccount({
-        fromPubkey: provider.publicKey, // The default anchor provider can pay for this
+        fromPubkey: authority.publicKey,
         newAccountPubkey: localWsolMintKeypair.publicKey,
         space: MINT_SIZE,
         lamports: lamportsforsolmint,
@@ -132,12 +117,12 @@ describe("vrgda", () => {
       createInitializeMint2Instruction(
         localWsolMintKeypair.publicKey,
         9, // decimals
-        provider.publicKey, // mint authority
+        authority.publicKey, // mint authority
         null,               // freeze authority
         TOKEN_PROGRAM_ID
       )
     );
-    await provider.sendAndConfirm(createWSOLMINTtx, [localWsolMintKeypair]);
+    await provider.sendAndConfirm(createWSOLMINTtx, [localWsolMintKeypair, authority]);
 
     // 3) We'll derive the VRGDA vault for the minted token being sold.
     vrgdaVault = await getAssociatedTokenAddress(
@@ -160,7 +145,7 @@ describe("vrgda", () => {
     // Create the VRGDA's wSOL ATA
     const createVrgdaSolAtaTx = new Transaction().add(
       createAssociatedTokenAccountIdempotentInstruction(
-        provider.publicKey,
+        authority.publicKey,
         vrgdaSolAta,
         authority.publicKey,
         localWsolMintKeypair.publicKey,
@@ -168,7 +153,7 @@ describe("vrgda", () => {
         ASSOCIATED_TOKEN_PROGRAM_ID
       )
     );
-    await provider.sendAndConfirm(createVrgdaSolAtaTx);
+    await provider.sendAndConfirm(createVrgdaSolAtaTx, [authority]);
 
     // 5) We'll also pre-derive the buyer's associated addresses:
     buyerAta = await getAssociatedTokenAddress(
@@ -194,7 +179,7 @@ describe("vrgda", () => {
       ASSOCIATED_TOKEN_PROGRAM_ID
     );
     buyerwSolAta = await getAssociatedTokenAddress(
-      localWsolMintKeypair.publicKey, 
+      localWsolMintKeypair.publicKey,
       buyer.publicKey,
       false,
       TOKEN_PROGRAM_ID,
@@ -219,7 +204,7 @@ describe("vrgda", () => {
     // Create the buyer's wSOL ATA
     const createBuyerwSolAtaTx = new Transaction().add(
       createAssociatedTokenAccountIdempotentInstruction(
-        provider.publicKey,
+        authority.publicKey,
         buyerwSolAta,
         buyer.publicKey,
         localWsolMintKeypair.publicKey,
@@ -227,12 +212,12 @@ describe("vrgda", () => {
         ASSOCIATED_TOKEN_PROGRAM_ID
       )
     );
-    await provider.sendAndConfirm(createBuyerwSolAtaTx);
+    await provider.sendAndConfirm(createBuyerwSolAtaTx, [authority]);
 
     // Create the buyer2's wSOL ATA
     const createBuyer2wSolAtaTx = new Transaction().add(
       createAssociatedTokenAccountIdempotentInstruction(
-        provider.publicKey,
+        authority.publicKey,
         buyer2wSolAta,
         buyer2.publicKey,
         localWsolMintKeypair.publicKey,
@@ -240,12 +225,12 @@ describe("vrgda", () => {
         ASSOCIATED_TOKEN_PROGRAM_ID
       )
     );
-    await provider.sendAndConfirm(createBuyer2wSolAtaTx);
+    await provider.sendAndConfirm(createBuyer2wSolAtaTx, [authority]);
 
     // Create the buyer3's wSOL ATA
     const createBuyer3wSolAtaTx = new Transaction().add(
       createAssociatedTokenAccountIdempotentInstruction(
-        provider.publicKey,
+        authority.publicKey,
         buyer3wSolAta,
         buyer3.publicKey,
         localWsolMintKeypair.publicKey,
@@ -253,59 +238,59 @@ describe("vrgda", () => {
         ASSOCIATED_TOKEN_PROGRAM_ID
       )
     );
-    await provider.sendAndConfirm(createBuyer3wSolAtaTx);
+    await provider.sendAndConfirm(createBuyer3wSolAtaTx, [authority]);
 
     // Mint wSOL to VRGDA's ATA
     const WsolminttoTx = new Transaction().add(
       createMintToInstruction(
         localWsolMintKeypair.publicKey,
         vrgdaSolAta,
-        provider.publicKey,
+        authority.publicKey,
         1_000_000_000,
         [],
         TOKEN_PROGRAM_ID
       )
     );
-    await provider.sendAndConfirm(WsolminttoTx);
+    await provider.sendAndConfirm(WsolminttoTx, [authority]);
 
     // Mint wSOL to buyer's ATA
     const mintToBuyerTx = new Transaction().add(
       createMintToInstruction(
         localWsolMintKeypair.publicKey,
         buyerwSolAta,
-        provider.publicKey,
+        authority.publicKey,
         1_000_000_000_000,
         [],
         TOKEN_PROGRAM_ID
       )
     );
-    await provider.sendAndConfirm(mintToBuyerTx);
+    await provider.sendAndConfirm(mintToBuyerTx, [authority]);
 
     // Mint wSOL to buyer2's ATA
     const mintToBuyer2Tx = new Transaction().add(
       createMintToInstruction(
         localWsolMintKeypair.publicKey,
         buyer2wSolAta,
-        provider.publicKey,
+        authority.publicKey,
         1_000_000_000_000,
         [],
         TOKEN_PROGRAM_ID
       )
     );
-    await provider.sendAndConfirm(mintToBuyer2Tx);
+    await provider.sendAndConfirm(mintToBuyer2Tx, [authority]);
 
     // Mint wSOL to buyer3's ATA
     const mintToBuyer3Tx = new Transaction().add(
       createMintToInstruction(
         localWsolMintKeypair.publicKey,
         buyer3wSolAta,
-        provider.publicKey,
+        authority.publicKey,
         1_000_000_000_000,
         [],
         TOKEN_PROGRAM_ID
       )
     );
-    await provider.sendAndConfirm(mintToBuyer3Tx);
+    await provider.sendAndConfirm(mintToBuyer3Tx, [authority]);
   });
 
   it("Initialize VRGDA", async () => {
@@ -321,13 +306,13 @@ describe("vrgda", () => {
     // 2) Convert SOL → lamports (9 decimals)
     //    0.004 * 10^9 = 4_000_000
     const lamports = Math.floor(humanPriceSol * LAMPORTS_PER_SOL);
-    console.log("lamports:", lamports); 
-    
+    console.log("lamports:", lamports);
+
     const targetPriceWad = new BN(lamports).mul(new BN(LAMPORTS_PER_SOL));
-    console.log("targetPriceWad:", targetPriceWad.toString()); 
+    console.log("targetPriceWad:", targetPriceWad.toString());
 
     console.log("Decay constant percent:", decayConstantPercent.toString());
-  // Multiply by 1e18 first, then divide by 100 to preserve the fraction.
+    // Multiply by 1e18 first, then divide by 100 to preserve the fraction.
     const decayVal = decayConstantPercent.mul(ONE_WAD).div(new BN(100));
     const r = new BN(1_000_000);
     const vrgdaStartTimestamp = new BN(0);
@@ -335,122 +320,103 @@ describe("vrgda", () => {
     console.log("Initializing VRGDA with r:", r.toString());
     console.log("- Authority:", authority.publicKey.toString());
     console.log("- VRGDA PDA:", vrgdaPda.toString());
+
+    const [metadata] = await PublicKey.findProgramAddressSync(
+      [
+        Buffer.from('metadata'),
+        TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+        mintKeypair.publicKey.toBuffer(),
+      ],
+      TOKEN_METADATA_PROGRAM_ID
+    );
     // The instruction will create the VRGDA's vault for the minted token, 
     // and also the wsol ATA with authority = authority (on the program side).
-    const txSig = await program.methods
-      .initializeVrgda(targetPriceWad, decayConstantPercent, vrgdaStartTimestamp, totalSupply, r)
+    const txi = await program.methods
+      .initializeVrgda(targetPriceWad, decayConstantPercent, vrgdaStartTimestamp, totalSupply, r, '1', '1', '1')
       .accountsStrict({
         authority: authority.publicKey,
         vrgda: vrgdaPda,
         vrgdaVault,
         mint: mintKeypair.publicKey,
         vrgdaSolAta,
+        metadata,
         wsolMint: localWsolMintKeypair.publicKey,
         systemProgram: SystemProgram.programId,
         tokenProgram: TOKEN_PROGRAM_ID,
         associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+        metadataProgram: TOKEN_METADATA_PROGRAM_ID,
       })
       .remainingAccounts([
         {
-          pubkey: authority.publicKey, 
-          isWritable: true, 
-          isSigner: true
+          pubkey: authority.publicKey, // authority for minting
+          isSigner: true,
+          isWritable: false,
+        },
+        {
+          pubkey: mintKeypair.publicKey, // mint for the VRGDA
+          isSigner: true,
+          isWritable: true,
         }
       ])
-      .signers([authority])
-      .rpc();
-    await confirmTx(txSig);
-
-    // Mint tokens to VRGDA's vault if desired.
-    const mintTx = new Transaction().add(
-      createMintToInstruction(
-        mintKeypair.publicKey,
-        vrgdaVault,
-        provider.publicKey, // mint authority from createInitializeMint2Instruction
-        1_000_000_000_000_000,
-        [],
-        TOKEN_PROGRAM_ID
-      )
-    );
-    await provider.sendAndConfirm(mintTx);
+      .instruction();
+    try {
+      const txSig = await provider.sendAndConfirm(new Transaction().add(txi), [authority, mintKeypair]);
+      await confirmTx(txSig);
+    } catch (error) {
+      console.error("Error initializing VRGDA:", error);
+      throw error;
+    }
 
     const mintToBuyer1Tx = new Transaction().add(
       createMintToInstruction(
         localWsolMintKeypair.publicKey,
         buyerwSolAta,
-        provider.publicKey, // mint authority from createInitializeMint2Instruction
+        authority.publicKey, // mint authority from createInitializeMint2Instruction
         1_000_000_000_000_000_000_000,
         [],
         TOKEN_PROGRAM_ID
       )
     );
-    await provider.sendAndConfirm(mintToBuyer1Tx);
+    await provider.sendAndConfirm(mintToBuyer1Tx, [authority]);
 
     const mintToBuyer2Tx = new Transaction().add(
       createMintToInstruction(
         localWsolMintKeypair.publicKey,
         buyer2wSolAta,
-        provider.publicKey, // mint authority from createInitializeMint2Instruction
+        authority.publicKey, // mint authority from createInitializeMint2Instruction
         1_000_000_000_000_000_000_000,
         [],
         TOKEN_PROGRAM_ID
-      ) 
+      )
     );
-    await provider.sendAndConfirm(mintToBuyer2Tx);
+    await provider.sendAndConfirm(mintToBuyer2Tx, [authority]);
 
     const mintToBuyer3Tx = new Transaction().add(
       createMintToInstruction(
         localWsolMintKeypair.publicKey,
         buyer3wSolAta,
-        provider.publicKey, // mint authority from createInitializeMint2Instruction
+        authority.publicKey, // mint authority from createInitializeMint2Instruction
         1_000_000_000_000_000_000_000,
         [],
         TOKEN_PROGRAM_ID
       )
     );
 
-    await provider.sendAndConfirm(mintToBuyer3Tx);
-
-
-     const transferAuthorityTx = new Transaction().add(
-      createSetAuthorityInstruction(
-        mintKeypair.publicKey,
-        provider.publicKey,             // Current authority (provider) 
-        AuthorityType.MintTokens,
-        vrgdaPda,                       // New authority
-        [],
-        TOKEN_PROGRAM_ID
-      )
-    );
-    await provider.sendAndConfirm(transferAuthorityTx);
-
-    // const transferWsolAuthorityTx = new Transaction().add(
-    //   createSetAuthorityInstruction(
-    //     vrgdaSolAta,
-    //     authority.publicKey,             // Current authority (provider) 
-    //     AuthorityType.AccountOwner,
-    //     vrgdaPda,                       // New authority
-    //     [],
-    //     TOKEN_PROGRAM_ID
-    //   )
-    // );
-    
-    // await provider.sendAndConfirm(transferWsolAuthorityTx);
+    await provider.sendAndConfirm(mintToBuyer3Tx, [authority]);
 
     //Mint WSOL to VRGDA's wsol ATA
     const WsolMintTx = new Transaction().add(
       createMintToInstruction(
         localWsolMintKeypair.publicKey,
         vrgdaSolAta,
-        provider.publicKey,
+        authority.publicKey,
         1_000_000_000_000_000_000_000,
         [],
         TOKEN_PROGRAM_ID
       )
     );
-    await provider.sendAndConfirm(WsolMintTx);
-   
+    await provider.sendAndConfirm(WsolMintTx, [authority]);
 
     const vrgdaAccount = await program.account.vrgda.fetch(vrgdaPda);
     console.log("Deserialized VRGDA account:", vrgdaAccount);
@@ -462,310 +428,309 @@ describe("vrgda", () => {
 
   it("Buy tokens from VRGDA", async () => {
     try {
-        const amountToBuy = new BN(10_000_000_000_000);
-        const amountToBuy2 = new BN(20_000_000_000_000);
-        const amountToBuy3 = new BN(1_000_000_000_000);
+      const amountToBuy = new BN(10_000_000_000_000);
+      const amountToBuy2 = new BN(20_000_000_000_000);
+      const amountToBuy3 = new BN(1_000_000_000_000);
+      console.log("Buying tokens from VRGDA...", amountToBuy.toString());
 
-        console.log("Buying tokens from VRGDA...", amountToBuy.toString());
+      // Add a Compute Budget instruction to request extra compute units.
+      const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
+        units: 2_000_000,
+      });
 
-        // Add a Compute Budget instruction to request extra compute units.
-        const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
-            units: 2_000_000,
-        });
+      try {
+        // Airdrop SOL to buyers
+        await confirmTx(await connection.requestAirdrop(buyer.publicKey, 100 * LAMPORTS_PER_SOL));
+        await confirmTx(await connection.requestAirdrop(buyer2.publicKey, 100 * LAMPORTS_PER_SOL));
+        await confirmTx(await connection.requestAirdrop(buyer3.publicKey, 100 * LAMPORTS_PER_SOL));
+      } catch (airdropError) {
+        console.error("Airdrop failed:", airdropError);
+        throw airdropError;
+      }
+      // await sleep(80000);
 
-        try {
-            // Airdrop SOL to buyers
-            await confirmTx(await connection.requestAirdrop(buyer.publicKey, 100 * LAMPORTS_PER_SOL));
-            await confirmTx(await connection.requestAirdrop(buyer2.publicKey, 100 * LAMPORTS_PER_SOL));
-            await confirmTx(await connection.requestAirdrop(buyer3.publicKey, 100 * LAMPORTS_PER_SOL));
-        } catch (airdropError) {
-            console.error("Airdrop failed:", airdropError);
-            throw airdropError;
-        }
-        // await sleep(80000);
+      let txSig, vrgdaAccount, readablePrice;
+      try {
+        // First buy transaction
+        txSig = await program.methods
+          .buy(amountToBuy)
+          .accountsStrict({
+            buyer: buyer.publicKey,
+            vrgda: vrgdaPda,
+            mint: mintKeypair.publicKey,
+            wsolMint: localWsolMintKeypair.publicKey,
+            buyerWsolAta: buyerwSolAta,
+            buyerAta,
+            vrgdaVault,
+            vrgdaSolAta,
+            authority: authority.publicKey,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+            rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          })
+          .signers([buyer])
+          .preInstructions([computeBudgetIx])
+          .rpc();
+        await confirmTx(txSig);
 
-        let txSig, vrgdaAccount, readablePrice;
-        try {
-            // First buy transaction
-            txSig = await program.methods
-                .buy(amountToBuy)
-                .accountsStrict({
-                    buyer: buyer.publicKey,
-                    vrgda: vrgdaPda,
-                    mint: mintKeypair.publicKey,
-                    wsolMint: localWsolMintKeypair.publicKey,
-                    buyerWsolAta: buyerwSolAta,
-                    buyerAta,
-                    vrgdaVault,
-                    vrgdaSolAta,
-                    authority: authority.publicKey,
-                    tokenProgram: TOKEN_PROGRAM_ID,
-                    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-                    systemProgram: SystemProgram.programId,
-                    rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-                })
-                .signers([buyer])
-                .preInstructions([computeBudgetIx])
-                .rpc();
-            await confirmTx(txSig);
+        vrgdaAccount = await program.account.vrgda.fetch(vrgdaPda);
+        readablePrice = formatLamportsToSol(vrgdaAccount.currentPrice);
+        console.log("Price after first buy:", readablePrice);
+      } catch (firstBuyError) {
+        console.error("First buy transaction failed:", firstBuyError);
+        throw firstBuyError;
+      }
 
-            vrgdaAccount = await program.account.vrgda.fetch(vrgdaPda);
-            readablePrice = formatLamportsToSol(vrgdaAccount.currentPrice);
-            console.log("Price after first buy:", readablePrice);
-        } catch (firstBuyError) {
-            console.error("First buy transaction failed:", firstBuyError);
-            throw firstBuyError;
-        }
+      // Wait some time
+      // console.log("Waiting 5 seconds to simulate time passing...");
+      await sleep(1000);
 
-        // Wait some time
-        // console.log("Waiting 5 seconds to simulate time passing...");
-        await sleep(1000);
+      let txSig2, vrgdaAccount_t, readablePrice2;
+      try {
+        // Second buy transaction
+        txSig2 = await program.methods
+          .buy(amountToBuy2)
+          .accountsStrict({
+            buyer: buyer2.publicKey,
+            vrgda: vrgdaPda,
+            mint: mintKeypair.publicKey,
+            wsolMint: localWsolMintKeypair.publicKey,
+            buyerWsolAta: buyer2wSolAta,
+            buyerAta: buyer2Ata,
+            vrgdaVault,
+            vrgdaSolAta,
+            authority: authority.publicKey,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+            rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          })
+          .signers([buyer2])
+          .preInstructions([computeBudgetIx])
+          .rpc();
+        await confirmTx(txSig2);
 
-        let txSig2, vrgdaAccount_t, readablePrice2;
-        try {
-            // Second buy transaction
-            txSig2 = await program.methods
-                .buy(amountToBuy2)
-                .accountsStrict({
-                    buyer: buyer2.publicKey,
-                    vrgda: vrgdaPda,
-                    mint: mintKeypair.publicKey,
-                    wsolMint: localWsolMintKeypair.publicKey,
-                    buyerWsolAta: buyer2wSolAta,
-                    buyerAta: buyer2Ata,
-                    vrgdaVault,
-                    vrgdaSolAta,
-                    authority: authority.publicKey,
-                    tokenProgram: TOKEN_PROGRAM_ID,
-                    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-                    systemProgram: SystemProgram.programId,
-                    rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-                })
-                .signers([buyer2])
-                .preInstructions([computeBudgetIx])
-                .rpc();
-            await confirmTx(txSig2);
+        vrgdaAccount_t = await program.account.vrgda.fetch(vrgdaPda);
+        readablePrice2 = formatLamportsToSol(vrgdaAccount_t.currentPrice);
+        console.log("Price after second buy:", readablePrice2);
+      } catch (secondBuyError) {
+        console.error("Second buy transaction failed:", secondBuyError);
+        throw secondBuyError;
+      }
 
-            vrgdaAccount_t = await program.account.vrgda.fetch(vrgdaPda);
-            readablePrice2 = formatLamportsToSol(vrgdaAccount_t.currentPrice);
-            console.log("Price after second buy:", readablePrice2);
-        } catch (secondBuyError) {
-            console.error("Second buy transaction failed:", secondBuyError);
-            throw secondBuyError;
-        }
+      await sleep(10000);
 
-        await sleep(10000);
+      let txSig3, vrgdaAccount_3, readablePrice3;
+      try {
+        // Third buy transaction
+        txSig3 = await program.methods
+          .buy(amountToBuy3)
+          .accountsStrict({
+            buyer: buyer3.publicKey,
+            vrgda: vrgdaPda,
+            mint: mintKeypair.publicKey,
+            wsolMint: localWsolMintKeypair.publicKey,
+            buyerWsolAta: buyer3wSolAta,
+            buyerAta: buyer3Ata,
+            vrgdaVault,
+            vrgdaSolAta,
+            authority: authority.publicKey,
+            tokenProgram: TOKEN_PROGRAM_ID,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+            rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+          })
+          .signers([buyer3])
+          .preInstructions([computeBudgetIx])
+          .rpc();
+        await confirmTx(txSig3);
+        console.log("Buyer3 tx confirmed:", txSig3);
 
-        let txSig3, vrgdaAccount_3, readablePrice3;
-        try {
-            // Third buy transaction
-            txSig3 = await program.methods
-                .buy(amountToBuy3)
-                .accountsStrict({
-                    buyer: buyer3.publicKey,
-                    vrgda: vrgdaPda,
-                    mint: mintKeypair.publicKey,
-                    wsolMint: localWsolMintKeypair.publicKey,
-                    buyerWsolAta: buyer3wSolAta,
-                    buyerAta: buyer3Ata,
-                    vrgdaVault,
-                    vrgdaSolAta,
-                    authority: authority.publicKey,
-                    tokenProgram: TOKEN_PROGRAM_ID,
-                    associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-                    systemProgram: SystemProgram.programId,
-                    rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-                })
-                .signers([buyer3])
-                .preInstructions([computeBudgetIx])
-                .rpc();
-            await confirmTx(txSig3);
-            console.log("Buyer3 tx confirmed:", txSig3);
+        vrgdaAccount_3 = await program.account.vrgda.fetch(vrgdaPda);
+        readablePrice3 = formatLamportsToSol(vrgdaAccount_3.currentPrice);
+        console.log("Price after third buy:", readablePrice3);
+      } catch (thirdBuyError) {
+        console.error("Third buy transaction failed:", thirdBuyError);
+        throw thirdBuyError;
+      }
 
-            vrgdaAccount_3 = await program.account.vrgda.fetch(vrgdaPda);
-            readablePrice3 = formatLamportsToSol(vrgdaAccount_3.currentPrice);
-            console.log("Price after third buy:", readablePrice3);
-        } catch (thirdBuyError) {
-            console.error("Third buy transaction failed:", thirdBuyError);
-            throw thirdBuyError;
-        }
+      // Final state checks
+      try {
+        const vrgdaState = await program.account.vrgda.fetch(vrgdaPda);
+        console.log("VRGDA state after second buy:", vrgdaState.totalSupply.toString());
 
-        // Final state checks
-        try {
-            const vrgdaState = await program.account.vrgda.fetch(vrgdaPda);
-            console.log("VRGDA state after second buy:", vrgdaState.totalSupply.toString());
+        const buyerAtaAcc = await getAccount(connection, buyerAta, undefined, TOKEN_PROGRAM_ID);
+        console.log("Buyer token balance after buy:", buyerAtaAcc.amount.toString());
 
-            const buyerAtaAcc = await getAccount(connection, buyerAta, undefined, TOKEN_PROGRAM_ID);
-            console.log("Buyer token balance after buy:", buyerAtaAcc.amount.toString());
-
-            const buyer2AtaAcc = await getAccount(connection, buyer2Ata, undefined, TOKEN_PROGRAM_ID);
-            console.log("Buyer2 token balance after buy:", buyer2AtaAcc.amount.toString());
-        } catch (stateCheckError) {
-            console.error("Error checking final state:", stateCheckError);
-            throw stateCheckError;
-        }
+        const buyer2AtaAcc = await getAccount(connection, buyer2Ata, undefined, TOKEN_PROGRAM_ID);
+        console.log("Buyer2 token balance after buy:", buyer2AtaAcc.amount.toString());
+      } catch (stateCheckError) {
+        console.error("Error checking final state:", stateCheckError);
+        throw stateCheckError;
+      }
     } catch (overallError) {
-        console.error("Overall test failed:", overallError);
-        // Optionally re-throw to ensure test fails
-        throw overallError;
+      console.error("Overall test failed:", overallError);
+      // Optionally re-throw to ensure test fails
+      throw overallError;
     }
   });
 
-//   it("should successfully sell tokens back to VRGDA", async () => {
-//     // First, buy some tokens to establish a baseline
-//     const buyAmount = new BN(500_000_000_000);
-//     const sellAmount = new BN(250_000_000_000);
-//     const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
-//         units: 600_000,
-//     });
+  //   it("should successfully sell tokens back to VRGDA", async () => {
+  //     // First, buy some tokens to establish a baseline
+  //     const buyAmount = new BN(500_000_000_000);
+  //     const sellAmount = new BN(250_000_000_000);
+  //     const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
+  //         units: 600_000,
+  //     });
 
-//     try {
-//         // Sell tokens back
-//         const sellTx = await program.methods
-//             .sell(buyAmount)
-//             .accounts({
-//                 seller: buyer.publicKey,
-//                 vrgda: vrgdaPda,
-//                 mint: mintKeypair.publicKey,
-//                 wsolMint: localWsolMintKeypair.publicKey,
-//                 sellerWsolAta: buyerwSolAta,
-//                 sellerAta: buyerAta,
-//                 vrgdaVault,
-//                 vrgdaSolAta,
-//                 authority: authority.publicKey,
-//                 tokenProgram: TOKEN_PROGRAM_ID,
-//                 associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-//                 systemProgram: SystemProgram.programId,
-//                 rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-//             })
-//             .signers([buyer])
-//             .preInstructions([computeBudgetIx])
-//             .rpc();
-//         await confirmTx(sellTx);
+  //     try {
+  //         // Sell tokens back
+  //         const sellTx = await program.methods
+  //             .sell(buyAmount)
+  //             .accounts({
+  //                 seller: buyer.publicKey,
+  //                 vrgda: vrgdaPda,
+  //                 mint: mintKeypair.publicKey,
+  //                 wsolMint: localWsolMintKeypair.publicKey,
+  //                 sellerWsolAta: buyerwSolAta,
+  //                 sellerAta: buyerAta,
+  //                 vrgdaVault,
+  //                 vrgdaSolAta,
+  //                 authority: authority.publicKey,
+  //                 tokenProgram: TOKEN_PROGRAM_ID,
+  //                 associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+  //                 systemProgram: SystemProgram.programId,
+  //                 rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+  //             })
+  //             .signers([buyer])
+  //             .preInstructions([computeBudgetIx])
+  //             .rpc();
+  //         await confirmTx(sellTx);
 
-//         // Verify VRGDA state after sell
-//         const vrgdaAccount = await program.account.vrgda.fetch(vrgdaPda);
-//         console.log("VRGDA state after sell:", {
-//             tokensSold: vrgdaAccount.tokensSold.toString(),
-//             totalSupply: vrgdaAccount.totalSupply.toString(),
-//             currentPrice: vrgdaAccount.currentPrice.toString()
-//         });
+  //         // Verify VRGDA state after sell
+  //         const vrgdaAccount = await program.account.vrgda.fetch(vrgdaPda);
+  //         console.log("VRGDA state after sell:", {
+  //             tokensSold: vrgdaAccount.tokensSold.toString(),
+  //             totalSupply: vrgdaAccount.totalSupply.toString(),
+  //             currentPrice: vrgdaAccount.currentPrice.toString()
+  //         });
 
-//         // Check seller's token balances
-//         const sellerMintAcc = await getAccount(connection, buyer.publicKey, undefined, TOKEN_PROGRAM_ID);
-//         const sellerWsolAcc = await getAccount(connection, buyerwSolAta, undefined, TOKEN_PROGRAM_ID);
-        
-//         console.log("Seller Mint Balance:", sellerMintAcc.amount.toString());
-//         console.log("Seller WSOL Balance:", sellerWsolAcc.amount.toString());
-//     } catch (error) {
-//         console.error("Sell test failed:", error);
-//         throw error;
-//     }
-// });
+  //         // Check seller's token balances
+  //         const sellerMintAcc = await getAccount(connection, buyer.publicKey, undefined, TOKEN_PROGRAM_ID);
+  //         const sellerWsolAcc = await getAccount(connection, buyerwSolAta, undefined, TOKEN_PROGRAM_ID);
 
-// it("should fail to sell 0 tokens", async () => {
-//     try {
-//         const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
-//             units: 600_000,
-//         });
+  //         console.log("Seller Mint Balance:", sellerMintAcc.amount.toString());
+  //         console.log("Seller WSOL Balance:", sellerWsolAcc.amount.toString());
+  //     } catch (error) {
+  //         console.error("Sell test failed:", error);
+  //         throw error;
+  //     }
+  // });
 
-//         const sellTx = await program.methods
-//             .sell(new BN(0))
-//             .accounts({
-//                 seller: buyer.publicKey,
-//                 vrgda: vrgdaPda,
-//                 mint: mintKeypair.publicKey,
-//                 wsolMint: localWsolMintKeypair.publicKey,
-//                 sellerWsolAta: buyerwSolAta,
-//                 sellerAta: buyerAta,
-//                 vrgdaVault,
-//                 vrgdaSolAta,
-//                 authority: authority.publicKey,
-//                 tokenProgram: TOKEN_PROGRAM_ID,
-//                 associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-//                 systemProgram: SystemProgram.programId,
-//                 rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-//             })
-//             .signers([buyer])
-//             .preInstructions([computeBudgetIx])
-//             .rpc();
-        
-//         await confirmTx(sellTx);
-//         throw new Error("Should have failed to sell 0 tokens");
-//     } catch (error) {
-//         // Check if error is the expected AmountCantBeZero error
-//         if (error instanceof anchor.AnchorError) {
-            
-//         } else {
-//             throw error;
-//         }
-//     }
-// });
+  // it("should fail to sell 0 tokens", async () => {
+  //     try {
+  //         const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
+  //             units: 600_000,
+  //         });
 
-// it("should fail to sell more tokens than purchased", async () => {
-//     try {
-//         // First, buy some tokens
-//         const buyAmount = new BN(500_000_000_000);
-//         const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
-//             units: 600_000,
-//         });
+  //         const sellTx = await program.methods
+  //             .sell(new BN(0))
+  //             .accounts({
+  //                 seller: buyer.publicKey,
+  //                 vrgda: vrgdaPda,
+  //                 mint: mintKeypair.publicKey,
+  //                 wsolMint: localWsolMintKeypair.publicKey,
+  //                 sellerWsolAta: buyerwSolAta,
+  //                 sellerAta: buyerAta,
+  //                 vrgdaVault,
+  //                 vrgdaSolAta,
+  //                 authority: authority.publicKey,
+  //                 tokenProgram: TOKEN_PROGRAM_ID,
+  //                 associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+  //                 systemProgram: SystemProgram.programId,
+  //                 rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+  //             })
+  //             .signers([buyer])
+  //             .preInstructions([computeBudgetIx])
+  //             .rpc();
 
-//         const buyTx = await program.methods
-//             .buy(buyAmount)
-//             .accounts({
-//                 buyer: buyer.publicKey,
-//                 vrgda: vrgdaPda,
-//                 mint: mintKeypair.publicKey,
-//                 wsolMint: localWsolMintKeypair.publicKey,
-//                 buyerWsolAta: buyerwSolAta,
-//                 buyerAta: buyerAta,
-//                 vrgdaVault,
-//                 vrgdaSolAta,
-//                 authority: authority.publicKey,
-//                 tokenProgram: TOKEN_PROGRAM_ID,
-//                 associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-//                 systemProgram: SystemProgram.programId,
-//                 rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-//             })
-//             .signers([buyer])
-//             .preInstructions([computeBudgetIx])
-//             .rpc();
-//         await confirmTx(buyTx);
+  //         await confirmTx(sellTx);
+  //         throw new Error("Should have failed to sell 0 tokens");
+  //     } catch (error) {
+  //         // Check if error is the expected AmountCantBeZero error
+  //         if (error instanceof anchor.AnchorError) {
 
-//         // Try to sell more tokens than purchased
-//         const impossibleSellAmount = buyAmount.add(new BN(1));
-//         const sellTx = await program.methods
-//             .sell(impossibleSellAmount)
-//             .accounts({
-//                 seller: buyer.publicKey,
-//                 vrgda: vrgdaPda,
-//                 mint: mintKeypair.publicKey,
-//                 wsolMint: localWsolMintKeypair.publicKey,
-//                 sellerWsolAta: buyerwSolAta,
-//                 sellerAta: buyerAta,
-//                 vrgdaVault,
-//                 vrgdaSolAta,
-//                 authority: authority.publicKey,
-//                 tokenProgram: TOKEN_PROGRAM_ID,
-//                 associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
-//                 systemProgram: SystemProgram.programId,
-//                 rent: anchor.web3.SYSVAR_RENT_PUBKEY,
-//             })
-//             .signers([buyer])
-//             .preInstructions([computeBudgetIx])
-//             .rpc();
-        
-//         await confirmTx(sellTx);
-//         throw new Error("Should have failed to sell more tokens than purchased");
-//     } catch (error) {
-//         // Check if error is the expected AmountExceedsTotalSupply error
-//         if (error instanceof anchor.AnchorError) {
-           
-//         } else {
-//             throw error;
-//         }
-//     }
-// });
+  //         } else {
+  //             throw error;
+  //         }
+  //     }
+  // });
+
+  // it("should fail to sell more tokens than purchased", async () => {
+  //     try {
+  //         // First, buy some tokens
+  //         const buyAmount = new BN(500_000_000_000);
+  //         const computeBudgetIx = ComputeBudgetProgram.setComputeUnitLimit({
+  //             units: 600_000,
+  //         });
+
+  //         const buyTx = await program.methods
+  //             .buy(buyAmount)
+  //             .accounts({
+  //                 buyer: buyer.publicKey,
+  //                 vrgda: vrgdaPda,
+  //                 mint: mintKeypair.publicKey,
+  //                 wsolMint: localWsolMintKeypair.publicKey,
+  //                 buyerWsolAta: buyerwSolAta,
+  //                 buyerAta: buyerAta,
+  //                 vrgdaVault,
+  //                 vrgdaSolAta,
+  //                 authority: authority.publicKey,
+  //                 tokenProgram: TOKEN_PROGRAM_ID,
+  //                 associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+  //                 systemProgram: SystemProgram.programId,
+  //                 rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+  //             })
+  //             .signers([buyer])
+  //             .preInstructions([computeBudgetIx])
+  //             .rpc();
+  //         await confirmTx(buyTx);
+
+  //         // Try to sell more tokens than purchased
+  //         const impossibleSellAmount = buyAmount.add(new BN(1));
+  //         const sellTx = await program.methods
+  //             .sell(impossibleSellAmount)
+  //             .accounts({
+  //                 seller: buyer.publicKey,
+  //                 vrgda: vrgdaPda,
+  //                 mint: mintKeypair.publicKey,
+  //                 wsolMint: localWsolMintKeypair.publicKey,
+  //                 sellerWsolAta: buyerwSolAta,
+  //                 sellerAta: buyerAta,
+  //                 vrgdaVault,
+  //                 vrgdaSolAta,
+  //                 authority: authority.publicKey,
+  //                 tokenProgram: TOKEN_PROGRAM_ID,
+  //                 associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+  //                 systemProgram: SystemProgram.programId,
+  //                 rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+  //             })
+  //             .signers([buyer])
+  //             .preInstructions([computeBudgetIx])
+  //             .rpc();
+
+  //         await confirmTx(sellTx);
+  //         throw new Error("Should have failed to sell more tokens than purchased");
+  //     } catch (error) {
+  //         // Check if error is the expected AmountExceedsTotalSupply error
+  //         if (error instanceof anchor.AnchorError) {
+
+  //         } else {
+  //             throw error;
+  //         }
+  //     }
+  // });
 
 });
 
@@ -788,7 +753,7 @@ function formatLamportsToSol(priceLamports: BN): string {
 }
 
 function percent(percent: number): BN {
-  return new BN (Math.floor((percent / 100) * 18446744073709551615)); // uint64 max value
+  return new BN(Math.floor((percent / 100) * 18446744073709551615)); // uint64 max value
 }
 
 async function waitForUnixTime(connection: Connection, unixTime: bigint, sleepInterval: number = 500) {
