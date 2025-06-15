@@ -21,7 +21,7 @@ pub mod vrgda {
 
     use anchor_spl::token_2022::TransferChecked;
 
-    use crate::math::{to_actual_mint_amount, to_mint_amount, InnerUint, PreciseNumber, HALF, ONE_PREC};
+    use crate::math::to_actual_mint_amount;
 
     use super::*;
 

@@ -27,7 +27,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // This test is ignored by default to avoid running it on every test run
+    #[ignore] 
     fn test_init() {
         let mut svm = LiteSVM::new();
 
@@ -70,7 +70,7 @@ mod tests {
     }
 
     #[test]
-    // #[ignore] // This test is ignored by default to avoid running it on every test run
+    // #[ignore]
     fn test_buy() {
         // let guard = ProfilerGuard::new(100).expect("Failed to create profiler guard");
         let mut svm = LiteSVM::new();
@@ -136,7 +136,7 @@ mod tests {
     }
 
     #[test]
-    #[ignore] // This test is ignored by default to avoid running it on every test run
+    #[ignore]
     fn test_pricing_fn() {
         let guard = ProfilerGuard::new(10).expect("Failed to create profiler guard");
         let svm = LiteSVM::new();

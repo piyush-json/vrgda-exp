@@ -3,6 +3,7 @@ VRGDAs are kind of a novel token issuance mechanism, conceived by Paradigm Resea
 in this [blogpost](https://www.paradigm.xyz/2022/08/vrgda). This repository contains
 an anchor solana program and typescript test and implements a linear token issuance
 schedule as mentioned in their original blogpost (highly recommended read).
+The repository also has a barebones lite-svm test w
 
 To test, do:
 
@@ -18,8 +19,9 @@ Feel free to modify the test values and params.
 ## Note
 The precise number library and functions are borrowed from Strata protocol's math 
 library which can be found [here](https://github.com/StrataFoundation/strata/tree/master/programs/spl-token-bonding/src).
+
 ## Warning
-Unaudited code. 
+Unaudited code. This code is not production ready!
 The formula needs upper and lower bounds since exponential functions can easily overflow.
 
 

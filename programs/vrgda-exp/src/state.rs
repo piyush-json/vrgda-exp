@@ -1,7 +1,4 @@
-
-use math::utils::{VrgdaSchedule, Wad, WAD};
-
-use crate::{error::VrgdaResult, math::{precise_number::PreciseNumber, precise_supply_amt, InnerUint, SignedPreciseNumber, HALF, ONE, ONE_PREC, U192}};
+use crate::{error::VrgdaResult, math::{precise_number::PreciseNumber, InnerUint, SignedPreciseNumber, ONE, ONE_PREC}};
 use super::*;
 
 pub const WSOL_MINT: Pubkey = Pubkey::new_from_array([
@@ -203,12 +200,11 @@ impl VRGDA {
             .unwrap();
         msg!("Normalized ONE MINUS K: {:?}", normalized_one_minus_k);
     
-        // Compute ln(1 - k) on the normalized value. Now ln(normalized_one_minus_k)
+        // Compute ln(1 - k) on the normalized value. ln(normalized_one_minus_k)
         // should be negative (e.g. ln(0.5) ≈ -0.693...).
         let ln_one_minus_k = normalized_one_minus_k.log().ok_or(VRGDAError::LogError)?;
         msg!("ln(ONE MINUS K): {:?}", ln_one_minus_k);
     
-        // Convert exponent_input to a signed number.
         // let exponent_input_signed = exponent_input.signed();
     
         // let normalized_exponent_input_signed = normalized_exponent_input.signed();
@@ -293,7 +289,6 @@ impl VRGDA {
         let rt_minus_n = precise_rt_minus_n.value.value.as_u64();
 
         msg!("RT MINUS N (token difference to be sold): {:?}", rt_minus_n);
-        // msg!("TIME SINCE START: {:?}", time_since_start);
         // target time for the very next token (sold+1), in wad
 
         let amount_scaled = amount
@@ -425,21 +420,13 @@ impl VRGDA {
         sold: u64,
         amount: u64,
     ) -> VrgdaResult<PreciseNumber> {
-      
-         // 1) elapsed seconds since start, then into wad
-
          msg!("now: {:?}", now);
          msg!("start timestamp: {:?}", self.vrgda_start_timestamp);
          let elapsed_wad = PreciseNumber::new((now - self.vrgda_start_timestamp) as u128)
          .ok_or(VRGDAError::MathOverflow)?;
          
          msg!("ELAPSED TIME: {:?}", elapsed_wad);
-             // .checked_mul(&ONE_PREC)
-             // .unwrap();
- 
-         // msg!("TIME SINCE START: {:?}", time_since_start);
-         // 2) target time for the very next token (sold+1), in wad
- 
+
          let scaled_sold = sold.checked_div(
              1_000_000
          ).unwrap();
@@ -449,32 +436,22 @@ impl VRGDA {
          let f_inv_wad = self.get_target_sale_time_precise(scaled_sold + amount_scaled);
          msg!("f_inv_wad: {:?}", f_inv_wad);
  
-         // let target_time = PreciseNumber::new(f_inv_wad as u128).unwrap();
-         // msg!("TARGET TIME: {:?}", target_time);
- 
-         // 3) normalized (t − S/r) = (elapsed_wad − f_inv_wad) / ONE_PREC
+         // normalized (t − S/r) = (elapsed_wad − f_inv_wad) / ONE_PREC
          let t_minus_sr = elapsed_wad
              .signed()
              .checked_sub(&f_inv_wad.signed())
              .unwrap()
              .checked_div(&ONE_PREC.signed())
              .ok_or(VRGDAError::DivisionError)?;
-             // .ok_or(VRGDAError::ExponentError)?;
-             // .checked_div(&ONE_PREC.signed())
-             // .unwrap();
          msg!("t_minus_sr: {:?}", t_minus_sr);
  
-         // let one = PreciseNumber::new(ONE).unwrap();
- 
-         // msg!("ONE: {:?}", one);
-         // 4) decay fraction k = (decay_constant_percent / 100) in wad
+         // decay fraction k = (decay_constant_percent / 100) in wad
          let k_wad = PreciseNumber::new(self.decay_constant_percent as u128)
              .unwrap()
              // .checked_mul(&ONE_PREC).unwrap()
              .checked_div(&PreciseNumber::new(100).unwrap()).unwrap();
          msg!("k_wad: {:?}", k_wad);
  
-         // 5) one_minus_k = 1·10¹⁸ − k_wad, then normalized back to [0,1)
          let one_minus_k = ONE_PREC
              .checked_sub(&k_wad)
              .ok_or(VRGDAError::OneMinusKError)?;
@@ -486,7 +463,6 @@ impl VRGDA {
          //     .unwrap();
          // msg!("Normalized ONE MINUS K: {:?}", normalized_one_minus_k);
  
-         // 6) ln(1−k) — must be negative
          let ln1k = one_minus_k.log().ok_or(VRGDAError::LogError)?;
          if !ln1k.is_negative {
              return Err(VRGDAError::LogError);
@@ -494,7 +470,6 @@ impl VRGDA {
  
          msg!("ln1k: {:?}", ln1k);
  
-         // 7) price of the very next token: p₀·exp( ln(1−k)·(t − S/r) )
          let p0 = PreciseNumber{
              value: InnerUint::from(self.target_price as u128),
          };
@@ -506,7 +481,6 @@ impl VRGDA {
          let p_s1 = p0.checked_mul(&next_mul).unwrap();
          msg!("p_s1: {:?}", p_s1);
  
-         // 8) geometric ratio q = (1−k)^(−1/r)
          let r = match self.schedule {
              Schedule::LinearSchedule { r } => r as u128,
              _ => unreachable!(),
@@ -529,7 +503,7 @@ impl VRGDA {
              .exp().ok_or(VRGDAError::ExponentTooLarge)?;
          msg!("q: {:?}", q);
         // ───────────────────────────────────────────────────────────────────────────
-        // 9) Chunked geometric‐series sum so q^m never overflows:
+        // Chunked geometric‐series sum so q^m never overflows:
         //    sum_{i=0..amount−1} p_s1 * q^i
         let mut remaining     = amount;
         let mut current_price = p_s1.clone();
@@ -611,14 +585,6 @@ pub fn vrgda_price_for_amount_for_tests(
     let rt = ((now - start_ts) as u128)
         .saturating_mul(r as u128) as u64;
 
-    let precise_rt = PreciseNumber {
-        value: InnerUint::from(rt as u128),
-    }
-    .signed();
-    let precise_n = PreciseNumber {
-        value: InnerUint::from(scaled_sold as u128),
-    }
-    .signed();
 
     // f_inv_wad = t* for the next token index
     let f_inv_wad = if sold == 0 {
