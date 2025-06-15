@@ -24,10 +24,7 @@ pub mod vrgda {
         token_2022::TransferChecked,
     };
     use mpl_token_metadata::types::DataV2;
-
-    use crate::math::{
-        to_actual_mint_amount, to_mint_amount, InnerUint, PreciseNumber, HALF, ONE_PREC,
-    };
+    use crate::math::to_actual_mint_amount;
 
     use super::*;
 
