@@ -19,12 +19,12 @@ declare_id!("FLSsuUZXKnDYyfhjTF1GTkvFkyQctfxABEEjGZxc5FJZ");
 #[program]
 pub mod vrgda {
 
+    use crate::math::to_actual_mint_amount;
     use anchor_spl::{
         metadata::{create_metadata_accounts_v3, CreateMetadataAccountsV3},
         token_2022::TransferChecked,
     };
     use mpl_token_metadata::types::DataV2;
-    use crate::math::to_actual_mint_amount;
 
     use super::*;
 
@@ -265,7 +265,6 @@ pub mod vrgda {
         Ok(())
     }
 
-    
     pub fn close_auction(ctx: Context<CloseAuction>) -> Result<()> {
         require!(
             ctx.accounts.vrgda.auction_ended == false,
@@ -345,8 +344,6 @@ pub mod vrgda {
     //         ).with_signer(signer),
     //         amount,
     //     )?;
-
-      
 
     //     // Transfer WSOL from the VRGDA WSOL vault back to the seller's WSOL account.
     //     anchor_spl::token::transfer_checked(
@@ -534,7 +531,7 @@ pub struct CloseAuction<'info> {
         associated_token::token_program = token_program,
     )]
     pub vrgda_sol_ata: Box<InterfaceAccount<'info, TokenAccount>>,
-   
+
     #[account(
         mut,
         mint::token_program = token_program,
@@ -551,94 +548,3 @@ pub struct CloseAuction<'info> {
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
-
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-//     use crate::{VRGDA, Schedule}; // adjust path as needed
-//     use crate::math::{PreciseNumber, ONE_PREC}; // your math module
-//     use anchor_lang::solana_program::clock::UnixTimestamp;
-//     use anchor_lang::solana_program::example_mocks::solana_keypair::Keypair;
-//     use anchor_lang::solana_program::example_mocks::solana_signer::Signer;
-//     use litesvm::LiteSVM;
-
-//     pub const WSOL_MINT: Pubkey = Pubkey::new_from_array([2; 32]);
-//     pub const AUTHORITY: Pubkey = Pubkey::new_from_array([3; 32]);
-    
-//     // let mut svm = LiteSVM::new();
-
-//     pub const mint: Pubkey = Pubkey::new_from_array([1; 32]);
-    
-//     fn setup_vrgda(start: UnixTimestamp, r: u64, decay_constant_percent: u64, p0: u64) -> VRGDA {
-//         VRGDA { 
-//             mint, 
-//             total_supply: 1000000000, 
-//             authority: AUTHORITY, target_price: (), decay_constant_percent: (), tokens_sold: (), created_at_timestamp: (), vrgda_start_timestamp: (), auction_ended: (), schedule: (), current_price: (), bump: () } 
-
-//     #[test]
-//     fn test_initial_price_when_sold_zero_within_r() {
-//         let now = 1747433683;
-//         let start = 1747433673;
-//         let r = 1_000_000;
-//         let amount = 100_000; // less than r
-//         let vrgda = setup_vrgda(start, r, 5, 4_000_000_000_000_000_000); // 4 SOL in wad
-
-//         let price = vrgda.vrgda_price_for_amount(now, 0, amount).unwrap();
-//         assert!(price.value > 0.into(), "Price should be > 0");
-//     }
-
-//     #[test]
-//     fn test_initial_price_when_sold_zero_exceeds_r() {
-//         let now = 1747433683;
-//         let start = 1747433673;
-//         let r = 1_000_000;
-//         let amount = 2_000_000; // more than r
-//         let vrgda = setup_vrgda(start, r, 5, 4_000_000_000_000_000_000); // 4 SOL in wad
-
-//         let price = vrgda.vrgda_price_for_amount(now, 0, amount).unwrap();
-//         assert!(price.value > 0.into(), "Price should be > 0");
-//     }
-
-//     #[test]
-//     fn test_price_when_some_tokens_already_sold() {
-//         let now = 1747433693; // 20 seconds after start
-//         let start = 1747433673;
-//         let r = 1_000_000;
-//         let sold = 1_000_000; // 1 token already sold
-//         let amount = 100_000;
-
-//         let vrgda = setup_vrgda(start, r, 5, 4_000_000_000_000_000_000); // 4 SOL
-
-//         let price = vrgda.vrgda_price_for_amount(now, sold, amount).unwrap();
-//         assert!(price.value > 0.into(), "Price should be > 0");
-//     }
-
-//     #[test]
-//     fn test_price_monotonicity() {
-//         let now = 1747433700;
-//         let start = 1747433673;
-//         let r = 1_000_000;
-//         let vrgda = setup_vrgda(start, r, 5, 4_000_000_000_000_000_000);
-
-//         let price_1 = vrgda.vrgda_price_for_amount(now, 0, 100_000).unwrap();
-//         let price_2 = vrgda.vrgda_price_for_amount(now, 0, 200_000).unwrap();
-
-//         // If decay works properly, price for more should be equal or higher
-//         assert!(price_2.value >= price_1.value);
-//     }
-
-//     #[test]
-//     fn test_overflow_protection() {
-//         let now = i64::MAX;
-//         let start = 0;
-//         let r = u64::MAX;
-//         let amount = u64::MAX;
-
-//         let vrgda = setup_vrgda(start, r, 5, 4_000_000_000_000_000_000);
-
-//         let result = vrgda.vrgda_price_for_amount(now, u64::MAX, amount);
-//         assert!(result.is_err(), "Should error on overflow");
-//     }
-//     }
-// }

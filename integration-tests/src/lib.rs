@@ -6,15 +6,14 @@ mod tests {
 
     use super::*;
     use anchor_lang::AccountDeserialize;
-    use litesvm::LiteSVM;
-    use solana_sdk::{clock::Clock, signature::Keypair};
-    use anchor_spl::token_2022::spl_token_2022;
     use anchor_spl::associated_token::spl_associated_token_account;
-    use solana_sdk::signer::Signer;
+    use anchor_spl::token_2022::spl_token_2022;
+    use litesvm::LiteSVM;
     use pprof::ProfilerGuard;
+    use solana_sdk::signer::Signer;
+    use solana_sdk::{clock::Clock, signature::Keypair};
     use vrgda_exp::state::{vrgda_price_for_amount_for_tests, VRGDA};
 
-    
     fn dump_flamegraph(test_name: &str, guard: ProfilerGuard) {
         if let Ok(report) = guard.report().build() {
             let path = format!("{}-flamegraph.svg", test_name);
@@ -27,15 +26,12 @@ mod tests {
     }
 
     #[test]
-    #[ignore] 
+    #[ignore]
     fn test_init() {
         let mut svm = LiteSVM::new();
 
-        svm.add_program_from_file(
-            vrgda_exp::ID,
-            "../target/deploy/vrgda_exp.so"
-        ).expect("Failed to load VRGDA program");
-
+        svm.add_program_from_file(vrgda_exp::ID, "../target/deploy/vrgda_exp.so")
+            .expect("Failed to load VRGDA program");
 
         let payer = Keypair::new();
         let mint = Keypair::new();
@@ -43,19 +39,22 @@ mod tests {
         let authority = Keypair::new();
         let destination = Keypair::new();
 
-        let vrgda_pda = helpers::get_vrgda_address(vrgda_exp::ID, &mint.pubkey(), &authority.pubkey());
+        let vrgda_pda =
+            helpers::get_vrgda_address(vrgda_exp::ID, &mint.pubkey(), &authority.pubkey());
 
-         let vrgda_mint_ata = spl_associated_token_account::get_associated_token_address_with_program_id(
-            &vrgda_pda, 
-            &mint.pubkey(),
-            &spl_token_2022::ID,
-        );
+        let vrgda_mint_ata =
+            spl_associated_token_account::get_associated_token_address_with_program_id(
+                &vrgda_pda,
+                &mint.pubkey(),
+                &spl_token_2022::ID,
+            );
 
-        let vrgda_sol_ata = spl_associated_token_account::get_associated_token_address_with_program_id(
-            &authority.pubkey(), 
-            &wsol_mint.pubkey(),
-            &spl_token_2022::ID,
-        );
+        let vrgda_sol_ata =
+            spl_associated_token_account::get_associated_token_address_with_program_id(
+                &authority.pubkey(),
+                &wsol_mint.pubkey(),
+                &spl_token_2022::ID,
+            );
 
         print!("Initializing SVM with payer: {:?}, mint: {:?}, wsol_mint: {:?}, authority: {:?}, destination: {:?}\n",
                payer.pubkey(), mint.pubkey(), wsol_mint.pubkey(), authority.pubkey(), destination.pubkey());
@@ -63,10 +62,26 @@ mod tests {
         println!("program ID: {:?}", vrgda_exp::ID);
         let target_price_wad = 4_000_000_000u128;
         // Initialize the SVM
-        helpers::initialize_vrgda_testing_accounts(&mut svm, &vrgda_pda, &vrgda_sol_ata, &vrgda_mint_ata, &payer, &mint, &wsol_mint, &authority, target_price_wad, 50, 0, 1_000_000_000, 1_000_000);
+        helpers::initialize_vrgda_testing_accounts(
+            &mut svm,
+            &vrgda_pda,
+            &vrgda_sol_ata,
+            &vrgda_mint_ata,
+            &payer,
+            &mint,
+            &wsol_mint,
+            &authority,
+            target_price_wad,
+            50,
+            0,
+            1_000_000_000,
+            1_000_000,
+        );
 
-        
-        assert!(svm.get_account(&vrgda_pda).is_some(), "VRGDA account should be initialized");
+        assert!(
+            svm.get_account(&vrgda_pda).is_some(),
+            "VRGDA account should be initialized"
+        );
     }
 
     #[test]
@@ -75,10 +90,8 @@ mod tests {
         // let guard = ProfilerGuard::new(100).expect("Failed to create profiler guard");
         let mut svm = LiteSVM::new();
 
-        svm.add_program_from_file(
-            vrgda_exp::ID,
-            "../target/deploy/vrgda_exp.so"
-        ).expect("Failed to load VRGDA program");
+        svm.add_program_from_file(vrgda_exp::ID, "../target/deploy/vrgda_exp.so")
+            .expect("Failed to load VRGDA program");
 
         let payer = Keypair::new();
         let mint = Keypair::new();
@@ -86,28 +99,44 @@ mod tests {
         let wsol_mint = Keypair::new();
         let authority = Keypair::new();
 
-        let vrgda_pda = helpers::get_vrgda_address(vrgda_exp::ID, &mint.pubkey(), &authority.pubkey());
+        let vrgda_pda =
+            helpers::get_vrgda_address(vrgda_exp::ID, &mint.pubkey(), &authority.pubkey());
 
+        let vrgda_mint_ata =
+            spl_associated_token_account::get_associated_token_address_with_program_id(
+                &vrgda_pda,
+                &mint.pubkey(),
+                &spl_token_2022::ID,
+            );
 
-        let vrgda_mint_ata = spl_associated_token_account::get_associated_token_address_with_program_id(
-            &vrgda_pda, 
-            &mint.pubkey(),
-            &spl_token_2022::ID,
-        );
-
-        let vrgda_sol_ata = spl_associated_token_account::get_associated_token_address_with_program_id(
-            &authority.pubkey(), 
-            &wsol_mint.pubkey(),
-            &spl_token_2022::ID,
-        );
+        let vrgda_sol_ata =
+            spl_associated_token_account::get_associated_token_address_with_program_id(
+                &authority.pubkey(),
+                &wsol_mint.pubkey(),
+                &spl_token_2022::ID,
+            );
         println!("program ID: {:?}", vrgda_exp::ID);
-        
+
         // Initialize the SVM
-        helpers::initialize_vrgda_testing_accounts(&mut svm, &vrgda_pda, &vrgda_sol_ata, &vrgda_mint_ata, &payer, &mint, &wsol_mint, &authority, 4_000_000_000u128, 50, 0, 1_000_000_000, 1_000_000);
+        helpers::initialize_vrgda_testing_accounts(
+            &mut svm,
+            &vrgda_pda,
+            &vrgda_sol_ata,
+            &vrgda_mint_ata,
+            &payer,
+            &mint,
+            &wsol_mint,
+            &authority,
+            4_000_000_000u128,
+            50,
+            0,
+            1_000_000_000,
+            1_000_000,
+        );
 
         // Perform a buy operation
         helpers::buy_tokens(
-            &mut svm, 
+            &mut svm,
             &payer,
             &buyer,
             &authority,
@@ -116,23 +145,28 @@ mod tests {
             &vrgda_mint_ata,
             &mint,
             &wsol_mint,
-            1000000
+            1000000,
         );
 
         // Dump the flamegraph for the test
         // dump_flamegraph("test_buy", guard);
-        let destination = spl_associated_token_account::get_associated_token_address_with_program_id(
-            &buyer.pubkey(), 
-            &mint.pubkey(),
-            &spl_token_2022::ID,
-        );
+        let destination =
+            spl_associated_token_account::get_associated_token_address_with_program_id(
+                &buyer.pubkey(),
+                &mint.pubkey(),
+                &spl_token_2022::ID,
+            );
         let acc = svm.get_account(&vrgda_pda);
-        let vrgda_state: VRGDA = AccountDeserialize::try_deserialize(&mut acc.unwrap().data.as_ref())
-            .expect("Failed to deserialize VRGDA state");
+        let vrgda_state: VRGDA =
+            AccountDeserialize::try_deserialize(&mut acc.unwrap().data.as_ref())
+                .expect("Failed to deserialize VRGDA state");
 
         println!("VRGDA state after buy: {:?}", vrgda_state);
         // Check if the buy was successful
-        assert!(svm.get_account(&destination).is_some(), "Destination account should have been created");
+        assert!(
+            svm.get_account(&destination).is_some(),
+            "Destination account should have been created"
+        );
     }
 
     #[test]
@@ -143,21 +177,20 @@ mod tests {
         let target_price = 4u64;
         let sold = 0;
         let rate = 1_000_000u64;
-        let now  = svm.get_sysvar::<Clock>()
-            .unix_timestamp;
+        let now = svm.get_sysvar::<Clock>().unix_timestamp;
         let start_ts = now;
 
         let amount = 1_000_000_000u64;
 
-        for _ in 0..100{
+        for _ in 0..100 {
             let price = vrgda_price_for_amount_for_tests(
-                now, 
-                sold, 
+                now,
+                sold,
                 amount,
                 start_ts,
                 rate,
                 5,
-                target_price
+                target_price,
             );
             println!("Price for amount {}: {:?}", amount, price);
         }

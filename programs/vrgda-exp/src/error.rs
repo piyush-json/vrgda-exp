@@ -1,6 +1,5 @@
-use std::result::Result;
 use anchor_lang::error_code;
-
+use std::result::Result;
 
 pub type VrgdaResult<T> = Result<T, VRGDAError>;
 
@@ -17,13 +16,13 @@ pub enum VRGDAError {
 
     #[msg("exponent error in T minus F inverse")]
     ExponentErrorInTMinusFInverse,
-    
+
     #[msg("Exponent error")]
     ExponentError,
 
     #[msg("exponent too large")]
     ExponentTooLarge,
-    
+
     #[msg("One minus k error")]
     OneMinusKError,
 
@@ -32,7 +31,7 @@ pub enum VRGDAError {
 
     #[msg("division error")]
     DivisionError,
-    
+
     #[msg("math overflow")]
     MathOverflow,
 

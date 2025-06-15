@@ -1,12 +1,17 @@
 use {
-    anchor_lang::{system_program, AccountDeserialize, InstructionData, ToAccountMetas}, anchor_spl::{
-        associated_token::spl_associated_token_account, token::spl_token, token_2022::spl_token_2022
-    }, litesvm::types::TransactionResult, solana_sdk::{
-        compute_budget::ComputeBudgetInstruction, instruction::Instruction, program_pack::Pack, pubkey::Pubkey, signature::Keypair, signer::Signer, system_instruction, transaction::Transaction
-    }, spl_token_2022::{
-        instruction::initialize_account,
-        state::Account,
-    }, std::convert::TryInto, 
+    anchor_lang::{system_program, AccountDeserialize, InstructionData, ToAccountMetas},
+    anchor_spl::{
+        associated_token::spl_associated_token_account, token::spl_token,
+        token_2022::spl_token_2022,
+    },
+    litesvm::types::TransactionResult,
+    solana_sdk::{
+        compute_budget::ComputeBudgetInstruction, instruction::Instruction, program_pack::Pack,
+        pubkey::Pubkey, signature::Keypair, signer::Signer, system_instruction,
+        transaction::Transaction,
+    },
+    spl_token_2022::{instruction::initialize_account, state::Account},
+    std::convert::TryInto,
 };
 
 pub fn create_account(
@@ -172,21 +177,11 @@ pub fn initialize_ata(
     svm.send_transaction(create_ata_tx)
 }
 
-
-pub fn get_vrgda_address(
-    program_id: Pubkey,
-    mint: &Pubkey,
-    authority: &Pubkey,
-) -> Pubkey {
-    let seeds = [
-        b"vrgda",
-        mint.as_ref(),
-        authority.as_ref(),
-    ];
+pub fn get_vrgda_address(program_id: Pubkey, mint: &Pubkey, authority: &Pubkey) -> Pubkey {
+    let seeds = [b"vrgda", mint.as_ref(), authority.as_ref()];
     let (address, _bump) = Pubkey::find_program_address(&seeds, &program_id);
     address
 }
-
 
 pub fn initialize_vrgda_testing_accounts(
     svm: &mut litesvm::LiteSVM,
@@ -227,7 +222,6 @@ pub fn initialize_vrgda_testing_accounts(
     //     ],
     // );
 
-
     // let message = message::Message::new(&[create_ix], Some(&payer.pubkey()));
     // let mut tx = Transaction::new_unsigned(message);
     // tx.try_sign(&[&payer], svm.latest_blockhash()).unwrap();
@@ -238,11 +232,7 @@ pub fn initialize_vrgda_testing_accounts(
 
     println!("VRGDA account created at: {:?}", vrgda_pda);
     // initialize mint account
-    let _ = init_mint_account(
-        svm, 
-        payer, 
-        mint
-    );
+    let _ = init_mint_account(svm, payer, mint);
 
     println!("Mint account initialized at: {:?}", mint.pubkey());
 
@@ -250,46 +240,35 @@ pub fn initialize_vrgda_testing_accounts(
 
     // // initializing mint vaults
     // let _ = initialize_ata(
-    //     svm, 
-    //     payer, 
+    //     svm,
+    //     payer,
     //     mint.pubkey(),
     //     authority.pubkey()
     // );
 
-    println!("Associated token account for mint created at: {:?}", 
+    println!(
+        "Associated token account for mint created at: {:?}",
         spl_associated_token_account::get_associated_token_address_with_program_id(
-            &authority.pubkey(), 
+            &authority.pubkey(),
             &mint.pubkey(),
             &spl_token_2022::ID,
         )
     );
     // initialize wsol mint account
-    let _ = init_mint_account(
-        svm, 
-        payer, 
-        wsol_mint
-    );
-    
+    let _ = init_mint_account(svm, payer, wsol_mint);
 
     println!("WSOL Mint account initialized at: {:?}", wsol_mint.pubkey());
-
-
-    
 
     println!("VRGDA vault address: {:?}", vrgda_mint_ata);
 
     // initialize wsol vaults
 
-    let _ = initialize_ata(
-        svm, 
-        payer, 
-        wsol_mint.pubkey(),
-        authority.pubkey()
-    );
+    let _ = initialize_ata(svm, payer, wsol_mint.pubkey(), authority.pubkey());
 
-    println!("Associated token account for WSOL mint created at: {:?}", 
+    println!(
+        "Associated token account for WSOL mint created at: {:?}",
         spl_associated_token_account::get_associated_token_address_with_program_id(
-            &authority.pubkey(), 
+            &authority.pubkey(),
             &wsol_mint.pubkey(),
             &spl_token_2022::ID,
         )
@@ -303,7 +282,6 @@ pub fn initialize_vrgda_testing_accounts(
     //     &authority.pubkey(),
     //     &[&authority.pubkey()],
     // ).unwrap();
-
 
     let ix_accounts = vrgda_exp::accounts::Initialize {
         authority: authority.pubkey(),
@@ -326,7 +304,7 @@ pub fn initialize_vrgda_testing_accounts(
         r,
     };
 
-    let ix = Instruction{
+    let ix = Instruction {
         program_id: vrgda_exp::ID,
         accounts: ix_accounts.to_account_metas(None),
         data: ix.data(),
@@ -340,21 +318,17 @@ pub fn initialize_vrgda_testing_accounts(
     );
     svm.send_transaction(transaction).unwrap();
     svm.get_account(vrgda_pda).unwrap();
-     // mint some tokens to the VRGDA vault
-    let _ = mint_tokens(
-        svm, 
-        payer, 
-        mint, 
-        *vrgda_mint_ata, 
-        total_supply
+    // mint some tokens to the VRGDA vault
+    let _ = mint_tokens(svm, payer, mint, *vrgda_mint_ata, total_supply);
+    println!(
+        "Minted {} tokens to VRGDA vault at: {:?}",
+        total_supply, vrgda_mint_ata
     );
-    println!("Minted {} tokens to VRGDA vault at: {:?}", total_supply, vrgda_mint_ata);
 }
-
 
 pub fn buy_tokens(
     svm: &mut litesvm::LiteSVM,
-    admin: &Keypair, 
+    admin: &Keypair,
     buyer: &Keypair,
     vrgda_authority: &Keypair,
     vrgda_pda: &Pubkey,
@@ -364,23 +338,11 @@ pub fn buy_tokens(
     wsol_mint: &Keypair,
     amount: u64,
 ) {
-
     svm.airdrop(&buyer.pubkey(), 100_000_000_000_000).unwrap();
-  
-    let _ = initialize_ata(
-        svm, 
-        buyer, 
-        mint.pubkey(),
-        buyer.pubkey()
-    );
 
-    let _ = initialize_ata(
-        svm, 
-        buyer, 
-        wsol_mint.pubkey(),
-        buyer.pubkey()
-    );
+    let _ = initialize_ata(svm, buyer, mint.pubkey(), buyer.pubkey());
 
+    let _ = initialize_ata(svm, buyer, wsol_mint.pubkey(), buyer.pubkey());
 
     // mint some WSOL to the buyer
     let buyer_wsol_ata = spl_associated_token_account::get_associated_token_address_with_program_id(
@@ -401,23 +363,21 @@ pub fn buy_tokens(
     );
 
     let _ = mint_tokens(
-        svm, 
-        admin, 
-        wsol_mint, 
-        buyer_wsol_ata, 
-        10_000_000_000_000_000 // 10 million WSOL
+        svm,
+        admin,
+        wsol_mint,
+        buyer_wsol_ata,
+        10_000_000_000_000_000, // 10 million WSOL
     );
 
-    let buy_ix = vrgda_exp::instruction::Buy {
-        amount,
-    };
+    let buy_ix = vrgda_exp::instruction::Buy { amount };
 
     let ix_accounts = vrgda_exp::accounts::Buy {
         buyer: buyer.pubkey(),
         vrgda: *vrgda_pda,
         mint: mint.pubkey(),
         wsol_mint: wsol_mint.pubkey(),
-        buyer_wsol_ata:buyer_wsol_ata,
+        buyer_wsol_ata: buyer_wsol_ata,
         buyer_ata,
         vrgda_vault: *vrgda_mint_ata,
         vrgda_sol_ata: *vrgda_sol_ata,
@@ -444,7 +404,6 @@ pub fn buy_tokens(
         svm.latest_blockhash(),
     );
     svm.send_transaction(transaction).unwrap();
-
 }
 
 pub fn fetch_account_data<T: AccountDeserialize>(
