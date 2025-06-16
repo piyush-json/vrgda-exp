@@ -38,7 +38,9 @@ import {
   generateTxUrl,
   validateVRGDAParams,
   TokenAmountUtils,
-  validatePagination
+  validatePagination,
+  fileToBase64,
+  uploadTokenMetadata
 } from './utils'
 
 const IDL = vrgdaIdl
@@ -76,6 +78,26 @@ export class VRGDAClient {
 
     validateVRGDAParams(params)
 
+    // Handle metadata upload if needed
+    let metadataUri = params.uri
+    if (!metadataUri) {
+      const metadata = {
+        name: params.name,
+        symbol: params.symbol,
+        description: params.description || '',
+        decimals: params.decimals || 6,
+        image: params.logo ? await fileToBase64(params.logo) : undefined
+      }
+
+      try {
+        metadataUri = await uploadTokenMetadata(metadata)
+        console.log('Metadata uploaded successfully:', metadataUri)
+      } catch (error) {
+        console.error('Failed to upload metadata:', error)
+        throw new Error(`Metadata upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+      }
+    }
+
     const mintPublic = params.mint.publicKey
     const transaction = new Transaction()
 
@@ -108,7 +130,7 @@ export class VRGDAClient {
     // Initialize VRGDA
     await this.addInitializeVRGDAInstruction(
       transaction,
-      params,
+      { ...params, uri: metadataUri },
       authority,
       vrgdaPda,
       vrgdaVault,
@@ -222,7 +244,9 @@ export class VRGDAClient {
     const wsolMintPubkey = params.wsolMint || WSOL_MINT
     const targetPriceWad = TokenAmountUtils.toPriceWadBN(params.targetPrice)
     const vrgdaStartTimestamp = new BN(params.vrgdaStartTimestamp || 0)
-
+    if (!params.uri) {
+      throw new Error('URI is required for VRGDA initialization')
+    }
     const initVrgdaIx = await this.program.methods
       .initializeVrgda(
         targetPriceWad,
@@ -381,6 +405,19 @@ export class VRGDAClient {
     return await this.transformVRGDAAccountToInfo(vrgda, vrgdaAccount)
   }
 
+  private async fetchMetadataFromUri(uri: string): Promise<any> {
+    try {
+      const response = await fetch(uri)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+      return await response.json()
+    } catch (error) {
+      console.warn('Failed to fetch metadata from URI:', error)
+      return null
+    }
+  }
+
   private async transformVRGDAAccountToInfo(vrgda: PublicKey, vrgdaAccount:
     Awaited<ReturnType<typeof this.program.account.vrgda.fetch>>
   ): Promise<VRGDAInfo> {
@@ -408,17 +445,24 @@ export class VRGDAClient {
       ],
       TOKEN_METADATA_PROGRAM_ID
     )
-    console.log(mint.toBase58(), metadataPDA.toBase58())
     const metadataAccount = await this.connection.getAccountInfo(metadataPDA)
     let metadata = null
     if (metadataAccount && metadataAccount.data) {
       try {
         // @ts-ignore correct according to mpl-token-metadata docs
         const meta = deserializeMetadata(metadataAccount);
+        
+        // Fetch additional metadata from URI if available
+        let fetchedMetadata = null
+        if (meta.uri && meta.uri.trim()) {
+          fetchedMetadata = await this.fetchMetadataFromUri(meta.uri)
+        }
+        
         metadata = {
           name: meta.name,
           symbol: meta.symbol,
           uri: meta.uri,
+          fetchedMetadata
         }
       } catch (parseError) {
         console.warn('Failed to parse metadata:', parseError)
@@ -445,7 +489,8 @@ export class VRGDAClient {
       metadata: metadata || {
         name: 'VRGDA Token',
         symbol: 'VRGDA',
-        uri: ''
+        uri: '',
+        fetchedMetadata: null
       }
     }
   }

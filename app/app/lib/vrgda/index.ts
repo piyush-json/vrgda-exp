@@ -1,4 +1,4 @@
-import { calculatePrice, calculateVRGDAPriceForAmount, findVRGDAPDA, TokenAmountUtils } from './utils'
+import { calculatePrice, calculateVRGDAPriceForAmount, findVRGDAPDA, TokenAmountUtils, fileToBase64, uploadTokenMetadata } from './utils'
 
 export type {
   VRGDAInitParams,
@@ -28,7 +28,9 @@ export {
   generateTxUrl,
   validateVRGDAParams,
   TokenAmountUtils,
-  validatePagination
+  validatePagination,
+  fileToBase64,
+  uploadTokenMetadata
 } from './utils'
 
 export { VRGDAClient } from './client'
@@ -37,5 +39,7 @@ export const VRGDAUtils = {
   findVRGDAPDA,
   calculatePrice,
   calculateVRGDAPriceForAmount,
-  TokenAmountUtils
+  TokenAmountUtils,
+  fileToBase64,
+  uploadTokenMetadata
 }

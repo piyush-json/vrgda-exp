@@ -3,7 +3,10 @@ import { PublicKey, Keypair } from '@solana/web3.js'
 export interface VRGDAInitParams {
   name: string
   symbol: string
-  uri: string
+  uri?: string // Make optional since we'll generate it
+  description?: string
+  decimals?: number
+  logo?: File | null
   mint: Keypair
   targetPrice: number
   decayConstant: number
@@ -17,6 +20,21 @@ export interface VRGDAInitParams {
 export interface VRGDABuyParams {
   amount: number
   vrgdaAddress: string | PublicKey
+}
+
+export interface TokenMetadataFromUri {
+  name: string
+  symbol: string
+  description: string
+  image: string
+  decimals: number
+  properties?: {
+    category?: string
+    files?: Array<{
+      uri: string
+      type: string
+    }>
+  }
 }
 
 export interface VRGDAInfo {
@@ -40,7 +58,8 @@ export interface VRGDAInfo {
     name: string
     symbol: string
     uri: string
-  }
+    fetchedMetadata?: TokenMetadataFromUri | null
+  } | null
 }
 
 

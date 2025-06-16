@@ -330,10 +330,11 @@ export default function LaunchToken() {
         reservePrice: parseFloat(formData.reservePrice),
         name: formData.name,
         symbol: formData.symbol,
-        uri: formData.logo ? URL.createObjectURL(formData.logo) : "https://arweave.net/example-token-metadata-uri",
+        description: formData.description,
+        logo: formData.logo,
       }
 
-      toast.loading('Creating token and initializing auction...', { id: 'launch-token' })
+      toast.loading('Uploading metadata and creating token...', { id: 'launch-token' })
 
       const result = await initializeVRGDA(params)
 

@@ -158,3 +158,53 @@ export function validatePagination(page: number, limit: number, maxLimit: number
   if (page < 1) throw new Error('Page must be greater than 0')
   if (limit < 1 || limit > maxLimit) throw new Error(`Limit must be between 1 and ${maxLimit}`)
 }
+
+const METADATA_UPLOAD_URI = import.meta.env.VITE_METADATA_UPLOAD_URI
+
+/**
+ * Convert file to base64 data URL
+ */
+export const fileToBase64 = (file: File): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = reject
+    reader.readAsDataURL(file)
+  })
+}
+
+/**
+ * Upload token metadata to URI service
+ */
+export const uploadTokenMetadata = async (metadata: {
+  name: string
+  symbol: string
+  description: string
+  decimals: number
+  image?: string
+}): Promise<string> => {
+  try {
+    const response = await fetch(METADATA_UPLOAD_URI, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(metadata),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      throw new Error(errorData.error || 'Failed to upload metadata')
+    }
+
+    const result = await response.json()
+    const uri = result.uri
+    if (!uri) {
+      throw new Error('No URI returned from metadata upload')
+    }
+    return result.uri
+  } catch (error) {
+    console.error('Metadata upload error:', error)
+    throw new Error(`Metadata upload failed: ${error instanceof Error ? error.message : 'Unknown error'}`)
+  }
+}

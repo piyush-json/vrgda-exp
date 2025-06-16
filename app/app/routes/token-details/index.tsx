@@ -245,23 +245,43 @@ export default function TokenDetails({ params }: Route.ComponentProps) {
               <div className="flex items-start justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center">
-                    {tokenInfo.metadata?.uri ? (
+                    {tokenInfo.metadata?.fetchedMetadata?.image ? (
+                      <img
+                        src={tokenInfo.metadata.fetchedMetadata.image}
+                        alt={tokenInfo.metadata?.name || tokenInfo.metadata?.symbol || 'Token'}
+                        className='w-16 h-16 rounded-full object-cover'
+                        onError={(e) => {
+                          // Fallback to default icon if image fails to load
+                          e.currentTarget.style.display = 'none'
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                        }}
+                      />
+                    ) : tokenInfo.metadata?.uri ? (
                       <img
                         src={tokenInfo.metadata.uri}
                         alt={tokenInfo.metadata?.name || tokenInfo.metadata?.symbol || 'Token'}
                         className='w-16 h-16 rounded-full object-cover'
+                        onError={(e) => {
+                          // Fallback to default icon if image fails to load
+                          e.currentTarget.style.display = 'none'
+                          e.currentTarget.nextElementSibling?.classList.remove('hidden')
+                        }}
                       />
-                    ) : (
-                      <CoinsIcon className="w-8 h-8 text-primary-foreground" />
-                    )}
+                    ) : null}
+                    <CoinsIcon className={`w-8 h-8 text-primary-foreground ${tokenInfo.metadata?.fetchedMetadata?.image || tokenInfo.metadata?.uri ? 'hidden' : ''}`} />
                   </div>
                   <div>
                     <CardTitle className="text-2xl">
-                      {tokenInfo.metadata?.name || 'Unknown Token'}
+                      {tokenInfo.metadata?.fetchedMetadata?.name || tokenInfo.metadata?.name || 'Unknown Token'}
                     </CardTitle>
                     <p className="text-muted-foreground">
-                      {tokenInfo.metadata?.symbol || 'UNK'} • VRGDA Token
+                      {tokenInfo.metadata?.fetchedMetadata?.symbol || tokenInfo.metadata?.symbol || 'UNK'} • VRGDA Token
                     </p>
+                    {tokenInfo.metadata?.fetchedMetadata?.description && (
+                      <p className="text-sm text-muted-foreground mt-1">
+                        {tokenInfo.metadata.fetchedMetadata.description}
+                      </p>
+                    )}
                     <div className="flex items-center gap-2 mt-2">
                       <Button
                         variant="outline"
@@ -370,6 +390,17 @@ export default function TokenDetails({ params }: Route.ComponentProps) {
               <CardTitle>Token Information</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {(tokenInfo.metadata?.fetchedMetadata?.description) && (
+                <>
+                  <div className="space-y-2">
+                    <span className="text-sm font-medium text-muted-foreground">Description</span>
+                    <p className="text-sm">
+                      {tokenInfo.metadata?.fetchedMetadata?.description}
+                    </p>
+                  </div>
+                  <Separator />
+                </>
+              )}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">Contract</span>
@@ -472,9 +503,9 @@ export default function TokenDetails({ params }: Route.ComponentProps) {
       <BuyTokenModal
         isOpen={isBuyModalOpen}
         onClose={() => setIsBuyModalOpen(false)}
-        tokenName={tokenInfo.metadata?.name || tokenInfo.metadata?.symbol || 'Unknown'}
-        tokenSymbol={tokenInfo.metadata?.symbol || 'UNK'}
-        tokenLogo={tokenInfo.metadata?.uri || '/default-token-logo.png'}
+        tokenName={tokenInfo.metadata?.fetchedMetadata?.name || tokenInfo.metadata?.name || tokenInfo.metadata?.symbol || 'Unknown'}
+        tokenSymbol={tokenInfo.metadata?.fetchedMetadata?.symbol || tokenInfo.metadata?.symbol || 'UNK'}
+        tokenLogo={tokenInfo.metadata?.fetchedMetadata?.image || tokenInfo.metadata?.uri || '/default-token-logo.png'}
         currentPrice={tokenInfo.currentPrice / 1e9}
         buyAmount={buyAmount}
         setBuyAmount={setBuyAmount}

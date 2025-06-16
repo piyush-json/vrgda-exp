@@ -49,20 +49,22 @@ export function useVRGDA() {
     totalSupply: number
     name: string
     symbol: string
+    description?: string
+    decimals?: number
+    logo?: File | null
     authority?: string
     vrgdaStartTimestamp?: number
     wsolMint?: string
-    uri: string
+    uri?: string
   }) => {
     if (!publicKey) throw new Error('Wallet not connected')
     if (!vrgdaClient) throw new Error('VRGDA client not initialized')
-    if (!params.uri)
-      params.uri = ''
     try {
       setIsLoading(true)
 
       const vrgdaParams: VRGDAInitParams = {
         ...params,
+        decimals: params.decimals || 6,
         authority: params.authority ? new PublicKey(params.authority) : publicKey,
         wsolMint: params.wsolMint ? new PublicKey(params.wsolMint) : undefined,
       }
