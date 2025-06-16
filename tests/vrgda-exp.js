@@ -46,7 +46,6 @@ const anchor = __importStar(require("@coral-xyz/anchor"));
 const anchor_1 = require("@coral-xyz/anchor");
 const web3_js_1 = require("@solana/web3.js");
 const spl_token_1 = require("@solana/spl-token");
-// Import the IDL directly to ensure we have the correct version
 describe("vrgda", () => {
     anchor.setProvider(anchor.AnchorProvider.env());
     const provider = anchor.getProvider();
@@ -85,6 +84,7 @@ describe("vrgda", () => {
     let buyerwSolAta;
     let buyer2wSolAta;
     let buyer3wSolAta;
+    const TOKEN_METADATA_PROGRAM_ID = new web3_js_1.PublicKey("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
     before("Airdrop, create mint, and compute associated addresses", () => __awaiter(void 0, void 0, void 0, function* () {
         // 1) Airdrop 20 SOL to each local Keypair so they can pay for creation.
         yield confirmTx(yield connection.requestAirdrop(authority.publicKey, 20 * web3_js_1.LAMPORTS_PER_SOL));
@@ -95,46 +95,35 @@ describe("vrgda", () => {
         // 2) Create the "mint being sold."
         const lamportsForMint = yield (0, spl_token_1.getMinimumBalanceForRentExemptMint)(connection);
         let createMintTx = new web3_js_1.Transaction().add(web3_js_1.SystemProgram.createAccount({
-            fromPubkey: provider.publicKey, // The default anchor provider can pay for this
+            fromPubkey: authority.publicKey,
             newAccountPubkey: mintKeypair.publicKey,
             space: spl_token_1.MINT_SIZE,
             lamports: lamportsForMint,
             programId: spl_token_1.TOKEN_PROGRAM_ID,
         }), (0, spl_token_1.createInitializeMint2Instruction)(mintKeypair.publicKey, 6, // decimals
-        provider.publicKey, // mint authority
+        authority.publicKey, // mint authority
         null, // freeze authority
         spl_token_1.TOKEN_PROGRAM_ID));
-        // const transferAuthorityTx = new Transaction().add(
-        //   createSetAuthorityInstruction(
-        //     mintKeypair.publicKey,
-        //     authority.publicKey,             // Current authority (provider) 
-        //     AuthorityType.MintTokens,
-        //     vrgdaPda,                       // New authority
-        //     [],
-        //     TOKEN_PROGRAM_ID
-        //   )
-        // );
-        yield provider.sendAndConfirm(createMintTx, [mintKeypair]);
-        // await provider.sendAndConfirm(transferAuthorityTx), [mintKeypair, authority];
+        yield provider.sendAndConfirm(createMintTx, [mintKeypair, authority]);
         const lamportsforsolmint = yield (0, spl_token_1.getMinimumBalanceForRentExemptMint)(connection);
         let createWSOLMINTtx = new web3_js_1.Transaction().add(web3_js_1.SystemProgram.createAccount({
-            fromPubkey: provider.publicKey, // The default anchor provider can pay for this
+            fromPubkey: authority.publicKey,
             newAccountPubkey: localWsolMintKeypair.publicKey,
             space: spl_token_1.MINT_SIZE,
             lamports: lamportsforsolmint,
             programId: spl_token_1.TOKEN_PROGRAM_ID,
         }), (0, spl_token_1.createInitializeMint2Instruction)(localWsolMintKeypair.publicKey, 9, // decimals
-        provider.publicKey, // mint authority
+        authority.publicKey, // mint authority
         null, // freeze authority
         spl_token_1.TOKEN_PROGRAM_ID));
-        yield provider.sendAndConfirm(createWSOLMINTtx, [localWsolMintKeypair]);
+        yield provider.sendAndConfirm(createWSOLMINTtx, [localWsolMintKeypair, authority]);
         // 3) We'll derive the VRGDA vault for the minted token being sold.
         vrgdaVault = yield (0, spl_token_1.getAssociatedTokenAddress)(mintKeypair.publicKey, vrgdaPda, true, spl_token_1.TOKEN_PROGRAM_ID, spl_token_1.ASSOCIATED_TOKEN_PROGRAM_ID);
         // 4) We'll derive the VRGDA's wSOL vault
         vrgdaSolAta = yield (0, spl_token_1.getAssociatedTokenAddress)(localWsolMintKeypair.publicKey, authority.publicKey, false, spl_token_1.TOKEN_PROGRAM_ID, spl_token_1.ASSOCIATED_TOKEN_PROGRAM_ID);
         // Create the VRGDA's wSOL ATA
-        const createVrgdaSolAtaTx = new web3_js_1.Transaction().add((0, spl_token_1.createAssociatedTokenAccountIdempotentInstruction)(provider.publicKey, vrgdaSolAta, authority.publicKey, localWsolMintKeypair.publicKey, spl_token_1.TOKEN_PROGRAM_ID, spl_token_1.ASSOCIATED_TOKEN_PROGRAM_ID));
-        yield provider.sendAndConfirm(createVrgdaSolAtaTx);
+        const createVrgdaSolAtaTx = new web3_js_1.Transaction().add((0, spl_token_1.createAssociatedTokenAccountIdempotentInstruction)(authority.publicKey, vrgdaSolAta, authority.publicKey, localWsolMintKeypair.publicKey, spl_token_1.TOKEN_PROGRAM_ID, spl_token_1.ASSOCIATED_TOKEN_PROGRAM_ID));
+        yield provider.sendAndConfirm(createVrgdaSolAtaTx, [authority]);
         // 5) We'll also pre-derive the buyer's associated addresses:
         buyerAta = yield (0, spl_token_1.getAssociatedTokenAddress)(mintKeypair.publicKey, buyer.publicKey, false, spl_token_1.TOKEN_PROGRAM_ID, spl_token_1.ASSOCIATED_TOKEN_PROGRAM_ID);
         buyer2Ata = yield (0, spl_token_1.getAssociatedTokenAddress)(mintKeypair.publicKey, buyer2.publicKey, false, spl_token_1.TOKEN_PROGRAM_ID, spl_token_1.ASSOCIATED_TOKEN_PROGRAM_ID);
@@ -143,26 +132,26 @@ describe("vrgda", () => {
         buyer2wSolAta = yield (0, spl_token_1.getAssociatedTokenAddress)(localWsolMintKeypair.publicKey, buyer2.publicKey, false, spl_token_1.TOKEN_PROGRAM_ID, spl_token_1.ASSOCIATED_TOKEN_PROGRAM_ID);
         buyer3wSolAta = yield (0, spl_token_1.getAssociatedTokenAddress)(localWsolMintKeypair.publicKey, buyer3.publicKey, false, spl_token_1.TOKEN_PROGRAM_ID, spl_token_1.ASSOCIATED_TOKEN_PROGRAM_ID);
         // Create the buyer's wSOL ATA
-        const createBuyerwSolAtaTx = new web3_js_1.Transaction().add((0, spl_token_1.createAssociatedTokenAccountIdempotentInstruction)(provider.publicKey, buyerwSolAta, buyer.publicKey, localWsolMintKeypair.publicKey, spl_token_1.TOKEN_PROGRAM_ID, spl_token_1.ASSOCIATED_TOKEN_PROGRAM_ID));
-        yield provider.sendAndConfirm(createBuyerwSolAtaTx);
+        const createBuyerwSolAtaTx = new web3_js_1.Transaction().add((0, spl_token_1.createAssociatedTokenAccountIdempotentInstruction)(authority.publicKey, buyerwSolAta, buyer.publicKey, localWsolMintKeypair.publicKey, spl_token_1.TOKEN_PROGRAM_ID, spl_token_1.ASSOCIATED_TOKEN_PROGRAM_ID));
+        yield provider.sendAndConfirm(createBuyerwSolAtaTx, [authority]);
         // Create the buyer2's wSOL ATA
-        const createBuyer2wSolAtaTx = new web3_js_1.Transaction().add((0, spl_token_1.createAssociatedTokenAccountIdempotentInstruction)(provider.publicKey, buyer2wSolAta, buyer2.publicKey, localWsolMintKeypair.publicKey, spl_token_1.TOKEN_PROGRAM_ID, spl_token_1.ASSOCIATED_TOKEN_PROGRAM_ID));
-        yield provider.sendAndConfirm(createBuyer2wSolAtaTx);
+        const createBuyer2wSolAtaTx = new web3_js_1.Transaction().add((0, spl_token_1.createAssociatedTokenAccountIdempotentInstruction)(authority.publicKey, buyer2wSolAta, buyer2.publicKey, localWsolMintKeypair.publicKey, spl_token_1.TOKEN_PROGRAM_ID, spl_token_1.ASSOCIATED_TOKEN_PROGRAM_ID));
+        yield provider.sendAndConfirm(createBuyer2wSolAtaTx, [authority]);
         // Create the buyer3's wSOL ATA
-        const createBuyer3wSolAtaTx = new web3_js_1.Transaction().add((0, spl_token_1.createAssociatedTokenAccountIdempotentInstruction)(provider.publicKey, buyer3wSolAta, buyer3.publicKey, localWsolMintKeypair.publicKey, spl_token_1.TOKEN_PROGRAM_ID, spl_token_1.ASSOCIATED_TOKEN_PROGRAM_ID));
-        yield provider.sendAndConfirm(createBuyer3wSolAtaTx);
+        const createBuyer3wSolAtaTx = new web3_js_1.Transaction().add((0, spl_token_1.createAssociatedTokenAccountIdempotentInstruction)(authority.publicKey, buyer3wSolAta, buyer3.publicKey, localWsolMintKeypair.publicKey, spl_token_1.TOKEN_PROGRAM_ID, spl_token_1.ASSOCIATED_TOKEN_PROGRAM_ID));
+        yield provider.sendAndConfirm(createBuyer3wSolAtaTx, [authority]);
         // Mint wSOL to VRGDA's ATA
-        const WsolminttoTx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(localWsolMintKeypair.publicKey, vrgdaSolAta, provider.publicKey, 1000000000, [], spl_token_1.TOKEN_PROGRAM_ID));
-        yield provider.sendAndConfirm(WsolminttoTx);
+        const WsolminttoTx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(localWsolMintKeypair.publicKey, vrgdaSolAta, authority.publicKey, 1000000000, [], spl_token_1.TOKEN_PROGRAM_ID));
+        yield provider.sendAndConfirm(WsolminttoTx, [authority]);
         // Mint wSOL to buyer's ATA
-        const mintToBuyerTx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(localWsolMintKeypair.publicKey, buyerwSolAta, provider.publicKey, 1000000000000, [], spl_token_1.TOKEN_PROGRAM_ID));
-        yield provider.sendAndConfirm(mintToBuyerTx);
+        const mintToBuyerTx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(localWsolMintKeypair.publicKey, buyerwSolAta, authority.publicKey, 1000000000000, [], spl_token_1.TOKEN_PROGRAM_ID));
+        yield provider.sendAndConfirm(mintToBuyerTx, [authority]);
         // Mint wSOL to buyer2's ATA
-        const mintToBuyer2Tx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(localWsolMintKeypair.publicKey, buyer2wSolAta, provider.publicKey, 1000000000000, [], spl_token_1.TOKEN_PROGRAM_ID));
-        yield provider.sendAndConfirm(mintToBuyer2Tx);
+        const mintToBuyer2Tx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(localWsolMintKeypair.publicKey, buyer2wSolAta, authority.publicKey, 1000000000000, [], spl_token_1.TOKEN_PROGRAM_ID));
+        yield provider.sendAndConfirm(mintToBuyer2Tx, [authority]);
         // Mint wSOL to buyer3's ATA
-        const mintToBuyer3Tx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(localWsolMintKeypair.publicKey, buyer3wSolAta, provider.publicKey, 1000000000000, [], spl_token_1.TOKEN_PROGRAM_ID));
-        yield provider.sendAndConfirm(mintToBuyer3Tx);
+        const mintToBuyer3Tx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(localWsolMintKeypair.publicKey, buyer3wSolAta, authority.publicKey, 1000000000000, [], spl_token_1.TOKEN_PROGRAM_ID));
+        yield provider.sendAndConfirm(mintToBuyer3Tx, [authority]);
     }));
     it("Initialize VRGDA", () => __awaiter(void 0, void 0, void 0, function* () {
         const totalSupply = new anchor_1.BN(1000000000000000);
@@ -186,63 +175,62 @@ describe("vrgda", () => {
         console.log("Initializing VRGDA with r:", r.toString());
         console.log("- Authority:", authority.publicKey.toString());
         console.log("- VRGDA PDA:", vrgdaPda.toString());
+        const [metadata] = yield web3_js_1.PublicKey.findProgramAddressSync([
+            Buffer.from('metadata'),
+            TOKEN_METADATA_PROGRAM_ID.toBuffer(),
+            mintKeypair.publicKey.toBuffer(),
+        ], TOKEN_METADATA_PROGRAM_ID);
         // The instruction will create the VRGDA's vault for the minted token, 
         // and also the wsol ATA with authority = authority (on the program side).
-        const txSig = yield program.methods
-            .initializeVrgda(targetPriceWad, decayConstantPercent, vrgdaStartTimestamp, totalSupply, r)
+        const txi = yield program.methods
+            .initializeVrgda(targetPriceWad, decayConstantPercent, vrgdaStartTimestamp, totalSupply, r, '1', '1', '1')
             .accountsStrict({
             authority: authority.publicKey,
             vrgda: vrgdaPda,
             vrgdaVault,
             mint: mintKeypair.publicKey,
             vrgdaSolAta,
+            metadata,
             wsolMint: localWsolMintKeypair.publicKey,
             systemProgram: web3_js_1.SystemProgram.programId,
             tokenProgram: spl_token_1.TOKEN_PROGRAM_ID,
             associatedTokenProgram: spl_token_1.ASSOCIATED_TOKEN_PROGRAM_ID,
             rent: anchor.web3.SYSVAR_RENT_PUBKEY,
+            metadataProgram: TOKEN_METADATA_PROGRAM_ID,
         })
             .remainingAccounts([
             {
-                pubkey: authority.publicKey,
+                pubkey: authority.publicKey, // authority for minting
+                isSigner: true,
+                isWritable: false,
+            },
+            {
+                pubkey: mintKeypair.publicKey, // mint for the VRGDA
+                isSigner: true,
                 isWritable: true,
-                isSigner: true
             }
         ])
-            .signers([authority])
-            .rpc();
-        yield confirmTx(txSig);
-        // Mint tokens to VRGDA's vault if desired.
-        const mintTx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(mintKeypair.publicKey, vrgdaVault, provider.publicKey, // mint authority from createInitializeMint2Instruction
-        1000000000000000, [], spl_token_1.TOKEN_PROGRAM_ID));
-        yield provider.sendAndConfirm(mintTx);
-        const mintToBuyer1Tx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(localWsolMintKeypair.publicKey, buyerwSolAta, provider.publicKey, // mint authority from createInitializeMint2Instruction
+            .instruction();
+        try {
+            const txSig = yield provider.sendAndConfirm(new web3_js_1.Transaction().add(txi), [authority, mintKeypair]);
+            yield confirmTx(txSig);
+        }
+        catch (error) {
+            console.error("Error initializing VRGDA:", error);
+            throw error;
+        }
+        const mintToBuyer1Tx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(localWsolMintKeypair.publicKey, buyerwSolAta, authority.publicKey, // mint authority from createInitializeMint2Instruction
         1e+21, [], spl_token_1.TOKEN_PROGRAM_ID));
-        yield provider.sendAndConfirm(mintToBuyer1Tx);
-        const mintToBuyer2Tx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(localWsolMintKeypair.publicKey, buyer2wSolAta, provider.publicKey, // mint authority from createInitializeMint2Instruction
+        yield provider.sendAndConfirm(mintToBuyer1Tx, [authority]);
+        const mintToBuyer2Tx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(localWsolMintKeypair.publicKey, buyer2wSolAta, authority.publicKey, // mint authority from createInitializeMint2Instruction
         1e+21, [], spl_token_1.TOKEN_PROGRAM_ID));
-        yield provider.sendAndConfirm(mintToBuyer2Tx);
-        const mintToBuyer3Tx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(localWsolMintKeypair.publicKey, buyer3wSolAta, provider.publicKey, // mint authority from createInitializeMint2Instruction
+        yield provider.sendAndConfirm(mintToBuyer2Tx, [authority]);
+        const mintToBuyer3Tx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(localWsolMintKeypair.publicKey, buyer3wSolAta, authority.publicKey, // mint authority from createInitializeMint2Instruction
         1e+21, [], spl_token_1.TOKEN_PROGRAM_ID));
-        yield provider.sendAndConfirm(mintToBuyer3Tx);
-        const transferAuthorityTx = new web3_js_1.Transaction().add((0, spl_token_1.createSetAuthorityInstruction)(mintKeypair.publicKey, provider.publicKey, // Current authority (provider) 
-        spl_token_1.AuthorityType.MintTokens, vrgdaPda, // New authority
-        [], spl_token_1.TOKEN_PROGRAM_ID));
-        yield provider.sendAndConfirm(transferAuthorityTx);
-        // const transferWsolAuthorityTx = new Transaction().add(
-        //   createSetAuthorityInstruction(
-        //     vrgdaSolAta,
-        //     authority.publicKey,             // Current authority (provider) 
-        //     AuthorityType.AccountOwner,
-        //     vrgdaPda,                       // New authority
-        //     [],
-        //     TOKEN_PROGRAM_ID
-        //   )
-        // );
-        // await provider.sendAndConfirm(transferWsolAuthorityTx);
+        yield provider.sendAndConfirm(mintToBuyer3Tx, [authority]);
         //Mint WSOL to VRGDA's wsol ATA
-        const WsolMintTx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(localWsolMintKeypair.publicKey, vrgdaSolAta, provider.publicKey, 1e+21, [], spl_token_1.TOKEN_PROGRAM_ID));
-        yield provider.sendAndConfirm(WsolMintTx);
+        const WsolMintTx = new web3_js_1.Transaction().add((0, spl_token_1.createMintToInstruction)(localWsolMintKeypair.publicKey, vrgdaSolAta, authority.publicKey, 1e+21, [], spl_token_1.TOKEN_PROGRAM_ID));
+        yield provider.sendAndConfirm(WsolMintTx, [authority]);
         const vrgdaAccount = yield program.account.vrgda.fetch(vrgdaPda);
         console.log("Deserialized VRGDA account:", vrgdaAccount);
         const vaultAcc = yield (0, spl_token_1.getAccount)(connection, vrgdaVault, undefined, spl_token_1.TOKEN_PROGRAM_ID);

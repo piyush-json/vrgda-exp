@@ -260,10 +260,12 @@ impl VRGDA {
             .ok_or(VRGDAError::MathOverflow)?;
 
         msg!(
-            "ELAPSED TIME: {:?}",
+            "ELAPSED TIME in seconds wad: {:?}",
             elapsed_wad.checked_div(&ONE_PREC).unwrap()
         );
 
+        let seconds_per_minute = PreciseNumber::new(60u128).unwrap();
+        let elapsed_minutes = elapsed_wad.checked_div(&seconds_per_minute).unwrap();
         let scaled_sold = sold.checked_div(1_000_000).unwrap();
 
         msg!("SCALED SOLD: {:?}", scaled_sold);
@@ -323,7 +325,7 @@ impl VRGDA {
         // };
         msg!("f_inv_wad: {:?}", f_inv_wad);
 
-        let t_minus_sr = elapsed_wad
+        let t_minus_sr = elapsed_minutes
             .signed()
             .checked_sub(&f_inv_wad.signed())
             .unwrap()
@@ -425,10 +427,14 @@ impl VRGDA {
     ) -> VrgdaResult<PreciseNumber> {
         msg!("now: {:?}", now);
         msg!("start timestamp: {:?}", self.vrgda_start_timestamp);
+        
+        // seconds to minutes conver
         let elapsed_wad = PreciseNumber::new((now - self.vrgda_start_timestamp) as u128)
             .ok_or(VRGDAError::MathOverflow)?;
 
-        msg!("ELAPSED TIME: {:?}", elapsed_wad);
+        msg!("ELAPSED TIME in seconds: {:?}", elapsed_wad);
+        let seconds_per_minute = PreciseNumber::new(60u128).unwrap();
+        let elapsed_minutes = elapsed_wad.checked_div(&seconds_per_minute).unwrap();
 
         let scaled_sold = sold.checked_div(1_000_000).unwrap();
 
@@ -438,7 +444,7 @@ impl VRGDA {
         msg!("f_inv_wad: {:?}", f_inv_wad);
 
         // normalized (t − S/r) = (elapsed_wad − f_inv_wad) / ONE_PREC
-        let t_minus_sr = elapsed_wad
+        let t_minus_sr = elapsed_minutes
             .signed()
             .checked_sub(&f_inv_wad.signed())
             .unwrap()

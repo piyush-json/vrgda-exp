@@ -4,15 +4,20 @@ pub mod helpers;
 mod tests {
     use std::fs::File;
 
+    use crate::helpers::get_metadata_pda;
+
     use super::*;
-    use anchor_lang::AccountDeserialize;
+    use anchor_lang::{pubkey, AccountDeserialize};
     use anchor_spl::associated_token::spl_associated_token_account;
     use anchor_spl::token_2022::spl_token_2022;
     use litesvm::LiteSVM;
     use pprof::ProfilerGuard;
+    use solana_sdk::pubkey::Pubkey;
     use solana_sdk::signer::Signer;
     use solana_sdk::{clock::Clock, signature::Keypair};
     use vrgda_exp::state::{vrgda_price_for_amount_for_tests, VRGDA};
+
+    pub const METAPLEX_METADATA_PROGRAM_ID: Pubkey = pubkey!("metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s");
 
     fn dump_flamegraph(test_name: &str, guard: ProfilerGuard) {
         if let Ok(report) = guard.report().build() {
@@ -30,14 +35,24 @@ mod tests {
     fn test_init() {
         let mut svm = LiteSVM::new();
 
+        let name = "vrgda token";
+        let symbol = "VRGDA";
+        let uri = "https://example.com/metadata.json";
+
         svm.add_program_from_file(vrgda_exp::ID, "../target/deploy/vrgda_exp.so")
             .expect("Failed to load VRGDA program");
+
+        svm.add_program_from_file(
+            METAPLEX_METADATA_PROGRAM_ID,
+        "mpl/metaplex_token_metadata_program.so",
+        ).expect("Failed to load Metaplex Metadata program");
 
         let payer = Keypair::new();
         let mint = Keypair::new();
         let wsol_mint = Keypair::new();
         let authority = Keypair::new();
         let destination = Keypair::new();
+        let (metadata_pda, _) = get_metadata_pda(&mint.pubkey(), &METAPLEX_METADATA_PROGRAM_ID);
 
         let vrgda_pda =
             helpers::get_vrgda_address(vrgda_exp::ID, &mint.pubkey(), &authority.pubkey());
@@ -71,11 +86,15 @@ mod tests {
             &mint,
             &wsol_mint,
             &authority,
+            metadata_pda,
             target_price_wad,
             50,
             0,
             1_000_000_000,
             1_000_000,
+            name,
+            symbol,
+            uri,
         );
 
         assert!(
@@ -93,11 +112,22 @@ mod tests {
         svm.add_program_from_file(vrgda_exp::ID, "../target/deploy/vrgda_exp.so")
             .expect("Failed to load VRGDA program");
 
+        svm.add_program_from_file(
+            METAPLEX_METADATA_PROGRAM_ID,
+        "../mpl/metaplex_token_metadata_program.so",
+        ).expect("Failed to load Metaplex Metadata program");
+
         let payer = Keypair::new();
         let mint = Keypair::new();
         let buyer = Keypair::new();
         let wsol_mint = Keypair::new();
         let authority = Keypair::new();
+        let metadata_pda =
+            get_metadata_pda(&mint.pubkey(), &METAPLEX_METADATA_PROGRAM_ID).0;
+
+        let name = "vrgda token";
+        let symbol = "VRGDA";
+        let uri = "https://example.com/metadata.json";
 
         let vrgda_pda =
             helpers::get_vrgda_address(vrgda_exp::ID, &mint.pubkey(), &authority.pubkey());
@@ -127,11 +157,15 @@ mod tests {
             &mint,
             &wsol_mint,
             &authority,
+            metadata_pda,
             4_000_000_000u128,
             50,
             0,
             1_000_000_000,
             1_000_000,
+            name,
+            symbol,
+            uri,
         );
 
         // Perform a buy operation

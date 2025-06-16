@@ -1,8 +1,7 @@
 use {
     anchor_lang::{system_program, AccountDeserialize, InstructionData, ToAccountMetas},
     anchor_spl::{
-        associated_token::spl_associated_token_account, token::spl_token,
-        token_2022::spl_token_2022,
+        associated_token::spl_associated_token_account, token::spl_token, token_2022::spl_token_2022
     },
     litesvm::types::TransactionResult,
     solana_sdk::{
@@ -192,11 +191,15 @@ pub fn initialize_vrgda_testing_accounts(
     mint: &Keypair,
     wsol_mint: &Keypair,
     authority: &Keypair,
+    metadata: Pubkey,
     target_price: u128,
     decay_constant_percent: u64,
     vrgda_start_timestamp: i64,
     total_supply: u64,
     r: u64,
+    name: &str,
+    symbol: &str,
+    uri: &str,
 ) {
     // let vrgda_address = get_vrgda_address(vrgda_exp::ID, &mint.pubkey(), &authority.pubkey());
     // let rent_exemption = svm.minimum_balance_for_rent_exemption(vrgda_exp::state::VRGDA::INIT_SPACE);
@@ -290,6 +293,8 @@ pub fn initialize_vrgda_testing_accounts(
         mint: mint.pubkey(),
         wsol_mint: wsol_mint.pubkey(),
         vrgda_sol_ata: *vrgda_sol_ata,
+        metadata,
+        metadata_program: mpl_token_metadata::ID,
         token_program: spl_token_2022::ID,
         associated_token_program: spl_associated_token_account::ID,
         system_program: solana_sdk::system_program::ID,
@@ -302,6 +307,9 @@ pub fn initialize_vrgda_testing_accounts(
         vrgda_start_timestamp,
         total_supply,
         r,
+        name: name.to_string(),
+        symbol: symbol.to_string(),
+        uri: uri.to_string(),
     };
 
     let ix = Instruction {
@@ -411,4 +419,20 @@ pub fn fetch_account_data<T: AccountDeserialize>(
     account: &Pubkey,
 ) -> T {
     T::try_deserialize(&mut svm.get_account(account).unwrap().data.as_ref()).unwrap()
+}
+
+
+pub fn get_metadata_pda(
+    mint: &Pubkey,
+    metadata_program_id: &Pubkey,
+) -> (Pubkey, u8) {
+    // The canonical Metaplex metadata seed is: ["metadata", metadata_program_id, mint]
+    Pubkey::find_program_address(
+        &[
+            b"metadata",
+            metadata_program_id.as_ref(),
+            mint.as_ref(),
+        ],
+        metadata_program_id,
+    )
 }

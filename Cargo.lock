@@ -1743,6 +1743,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "litesvm",
+ "mpl-token-metadata",
  "pprof",
  "solana-sdk",
  "uint",

@@ -10,4 +10,5 @@ uint = "*"
 vrgda-exp = {path = "../programs/vrgda-exp"}
 solana-sdk = "*"
 litesvm = "0.6.1"
+mpl-token-metadata = "5.1.0"
 pprof = { version = "0.15", features = ["flamegraph"] }
