@@ -63,11 +63,8 @@ export default function TokenDetails({ params }: Route.ComponentProps) {
   const generatePriceData = useCallback((info: VRGDAInfo) => {
     const data = []
     const hoursToShow = 5
-    console.log('Generating price data for:', info)
-    for (let i = 0; i < hoursToShow; i++) {
-      const timePassed =
-        info.startTime + i * 60 * 60 // i hours in seconds
-      console.log(`Calculating price for hour ${i}:`, timePassed)
+    for (let i = 0; i <= hoursToShow; i++) {
+      const timePassed = i * 60 * 60
       const price = calculatePrice({
         timePassed,
         tokensSold: info.tokensSold,

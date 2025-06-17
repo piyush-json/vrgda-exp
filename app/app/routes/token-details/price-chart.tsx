@@ -135,7 +135,7 @@ export function PriceChart({ auctionData }: PriceChartProps) {
         </div>
         <div className=" text-sm text-muted-foreground">
           <p>
-            This chart shows how the token price will decay over time according to the VRGDA mechanism.
+            This chart shows how the token price will decay over time according to the VRGDA mechanism when no more tokens are sold from now.
             Actual prices may vary based on purchase activity.
           </p>
         </div>

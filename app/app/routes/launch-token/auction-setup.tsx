@@ -239,10 +239,10 @@ export function AuctionSetup({
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <CartesianGrid vertical={false} stroke='rgba(0,0,0,0.1)' />
                     <XAxis
-                      dataKey='day'
+                      dataKey='hours'
                       axisLine={false}
                       tickLine={false}
-                      label={{ value: 'Days', position: 'insideBottom', offset: -5 }}
+                      label={{ value: 'Hours', position: 'insideBottom', offset: -5 }}
                     />
                     <YAxis
                       axisLine={false}

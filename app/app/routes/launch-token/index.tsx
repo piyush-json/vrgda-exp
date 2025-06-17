@@ -106,7 +106,8 @@ export default function LaunchToken() {
 
   const generatePriceCurveData = useCallback(() => {
     const data = []
-    const days = parseInt(formData.auctionDurationDays) || 7
+    const hours = 5
+    // const days = parseInt(formData.auctionDurationDays) || 7
     const targetPrice = parseFloat(formData.targetPrice)
     const decayConstant = parseFloat(formData.priceDecayPercent) / 100
     const r = parseFloat(formData.r)
@@ -117,8 +118,8 @@ export default function LaunchToken() {
       return
     }
 
-    for (let i = 0; i <= days; i++) {
-      const timeElapsed = i
+    for (let i = 0; i <= hours; i++) {
+      const timeElapsed = i * 60
       const tokensSold = 0
 
       const price = calculatePrice({
@@ -131,7 +132,7 @@ export default function LaunchToken() {
       })
 
       data.push({
-        day: i,
+        hours: i,
         price: Math.max(price, reservePrice)
       })
     }

@@ -80,7 +80,7 @@ export function BuyTokenModal({
     decayConstant: tokenInfo.decayConstant,
     r: tokenInfo.r,
     targetPrice: tokenInfo.targetPrice,
-    timePassed: tokenInfo.timePassed,
+    timePassed: Math.floor(Date.now() / 1000) - tokenInfo.startTime,
     tokensSold: tokenInfo.tokensSold,
   }
   ) : 0
