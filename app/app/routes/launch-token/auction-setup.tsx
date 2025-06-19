@@ -156,7 +156,7 @@ export function AuctionSetup({
           <div className='space-y-2'>
             <div className='flex items-center'>
               <Label htmlFor='r' className={validationErrors.r ? 'text-red-600 dark:text-red-400' : ''}>
-                Time Scale Parameter *
+                Issuance Rate *
               </Label>
               <HelpCircleIcon className='h-4 w-4 ml-2 text-gray-400' />
             </div>

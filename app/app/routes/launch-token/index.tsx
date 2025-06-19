@@ -195,7 +195,7 @@ export default function LaunchToken() {
 
     const r = parseFloat(formData.r)
     if (isNaN(r) || r <= 0) {
-      errors.r = 'Time scale parameter must be positive'
+      errors.r = 'Issuance rate parameter must be positive'
     }
 
     const duration = parseInt(formData.auctionDurationDays)
