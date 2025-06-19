@@ -76,6 +76,8 @@ mod tests {
 
         println!("program ID: {:?}", vrgda_exp::ID);
         let target_price_wad = 4_000_000_000u128;
+        let buy_window = 60i64; // 60 seconds
+
         // Initialize the SVM
         helpers::initialize_vrgda_testing_accounts(
             &mut svm,
@@ -95,6 +97,7 @@ mod tests {
             name,
             symbol,
             uri,
+            buy_window,
         );
 
         assert!(
@@ -146,6 +149,8 @@ mod tests {
                 &spl_token_2022::ID,
             );
         println!("program ID: {:?}", vrgda_exp::ID);
+        let buy_window = 60i64; // 60 seconds
+
 
         // Initialize the SVM
         helpers::initialize_vrgda_testing_accounts(
@@ -166,6 +171,7 @@ mod tests {
             name,
             symbol,
             uri,
+            buy_window,
         );
 
         // Perform a buy operation

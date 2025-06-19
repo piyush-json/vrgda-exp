@@ -19,7 +19,7 @@ declare_id!("FLSsuUZXKnDYyfhjTF1GTkvFkyQctfxABEEjGZxc5FJZ");
 #[program]
 pub mod vrgda {
 
-    use crate::math::to_actual_mint_amount;
+    use crate::math::{to_actual_mint_amount, ONE};
     use anchor_spl::{
         metadata::{create_metadata_accounts_v3, CreateMetadataAccountsV3},
         token_2022::TransferChecked,
@@ -45,6 +45,9 @@ pub mod vrgda {
         ctx.accounts.vrgda.decay_constant_percent = decay_constant_percent;
         ctx.accounts.vrgda.schedule = Schedule::LinearSchedule { r };
         ctx.accounts.vrgda.tokens_sold = 0;
+        ctx.accounts.vrgda.auction_ended = false;
+        ctx.accounts.vrgda.current_price = target_price.checked_div(ONE).unwrap() as u64;
+        ctx.accounts.vrgda.buy_window_time = 60; // 60 seconds hardcoded for now
         ctx.accounts.vrgda.created_at_timestamp = Clock::get()?.unix_timestamp.cast::<i64>()?;
 
         ctx.accounts.vrgda.vrgda_start_timestamp =
@@ -144,17 +147,15 @@ pub mod vrgda {
     }
 
     pub fn buy(ctx: Context<Buy>, amount: u64) -> Result<()> {
+        require!(amount != 0, VRGDAError::AmountCantBeZero);
         {
             // First, update the VRGDA state in its own scope.
             let vrgda = &mut ctx.accounts.vrgda;
-
-            // Validate input
-            require!(amount != 0, VRGDAError::AmountCantBeZero);
             require!(
                 amount < vrgda.total_supply,
                 VRGDAError::AmountExceedsTotalSupply
             );
-            require!(vrgda.auction_ended == false, VRGDAError::AuctionEnded);
+            require!(vrgda.auction_ended == false, VRGDAError::AuctionEnded);        
 
             // Reduce total supply
             vrgda.total_supply = vrgda.total_supply.checked_sub(amount).unwrap();
@@ -163,6 +164,14 @@ pub mod vrgda {
             let now = Clock::get()?.unix_timestamp;
             let sold = vrgda.tokens_sold;
             let schedule = &vrgda.schedule;
+
+            let time_since_last_buy = if sold == 0 {
+                0
+            } else {
+                now
+                    .checked_sub(vrgda.last_buy_timestamp)
+                    .unwrap_or(0)  
+            };
 
             msg!("Now: {}", now);
             msg!("Tokens sold before purchase: {}", sold);
@@ -175,34 +184,27 @@ pub mod vrgda {
             // Update tokens sold after price calculation
             vrgda.tokens_sold = vrgda.tokens_sold.checked_add(amount).unwrap();
 
-            // HALF is the constant 0.5 in wad
-            // let p0_wad = PreciseNumber {
-            //     value: InnerUint::from(vrgda.target_price)
-            // };
-
-            // 2) min = ½·p₀
-            // let min_price_precise = p0_wad
-            //     .checked_mul(&HALF)
-            //     .unwrap();
-
-            // // 3) max = 1000 SOL in wad = 1000 × 10¹⁸
-            // let max_price_precise = PreciseNumber {
-            //     value: ONE_PREC.value
-            //         .checked_mul(InnerUint::from(1_000u128))
-            //         .unwrap()
-            // };
-
-            // 2) Clamp your raw total_cost into that window
-            // let cost_clamped = price_in_sol
-            //     .clone()
-            //     .clamp(min_price_precise, max_price_precise);
-
             // Scale the price for transfer
-            let price_scaled_down = to_actual_mint_amount(&price_in_sol);
+            let mut price_scaled_down = to_actual_mint_amount(&price_in_sol);
             msg!("Price in SOL: {:?}", price_scaled_down);
+
+            msg!(
+                "Time since last buy: {} seconds",
+                time_since_last_buy
+            );
+
+            msg!(
+                "Buy window time: {} seconds",
+                vrgda.buy_window_time
+            );
+
+            if time_since_last_buy > vrgda.buy_window_time {
+                price_scaled_down = vrgda.current_price;
+            }
 
             // Save the updated current_price in state
             vrgda.current_price = price_scaled_down;
+            vrgda.last_buy_timestamp = now;
         }
 
         let vrgda = &ctx.accounts.vrgda;

@@ -27,6 +27,10 @@ pub struct VRGDA {
     pub created_at_timestamp: i64,
     /// Unix timestamp when the VRGDA began.
     pub vrgda_start_timestamp: i64,
+    /// The time window in seconds during which a buyer can buy tokens.
+    pub buy_window_time: i64,
+    /// The timestamp of the last buy.
+    pub last_buy_timestamp: i64,
     /// ended?
     pub auction_ended: bool,
     pub schedule: Schedule,
@@ -75,6 +79,8 @@ impl VRGDA {
             tokens_sold: 0,
             created_at_timestamp,
             vrgda_start_timestamp,
+            buy_window_time: 60,
+            last_buy_timestamp: 0,
             auction_ended: false,
             schedule,
             current_price: 0,

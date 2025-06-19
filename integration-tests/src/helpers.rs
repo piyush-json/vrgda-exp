@@ -200,6 +200,7 @@ pub fn initialize_vrgda_testing_accounts(
     name: &str,
     symbol: &str,
     uri: &str,
+    buy_window: i64,
 ) {
     // let vrgda_address = get_vrgda_address(vrgda_exp::ID, &mint.pubkey(), &authority.pubkey());
     // let rent_exemption = svm.minimum_balance_for_rent_exemption(vrgda_exp::state::VRGDA::INIT_SPACE);
