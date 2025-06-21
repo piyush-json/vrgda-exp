@@ -16,7 +16,7 @@ import {
 } from '~/lib/vrgda/index'
 
 export const VRGDA_PROGRAM_ID = new PublicKey(
-  import.meta.env.VITE_PROGRAM_ID || '4JfrrwUKvDRaM5DZFsuKE1uMD591KhSGGq3wq75JGwP5'
+  import.meta.env.VITE_PROGRAM_ID || 'CnsYsfwfmExzEZ456WeYdmEmaX3wVt9ePnyxZjLUJLnz'
 );
 
 export function getVrgdaProgramId(cluster: Cluster) {

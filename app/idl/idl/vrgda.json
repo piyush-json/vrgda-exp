@@ -1,5 +1,5 @@
 {
-  "address": "4JfrrwUKvDRaM5DZFsuKE1uMD591KhSGGq3wq75JGwP5",
+  "address": "CnsYsfwfmExzEZ456WeYdmEmaX3wVt9ePnyxZjLUJLnz",
   "metadata": {
     "name": "vrgda",
     "version": "0.1.0",
@@ -836,6 +836,20 @@
             "name": "vrgda_start_timestamp",
             "docs": [
               "Unix timestamp when the VRGDA began."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "buy_window_time",
+            "docs": [
+              "The time window in seconds during which a buyer can buy tokens."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "last_buy_timestamp",
+            "docs": [
+              "The timestamp of the last buy."
             ],
             "type": "i64"
           },

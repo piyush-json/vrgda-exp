@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/vrgda.json`.
  */
 export type Vrgda = {
-  "address": "4JfrrwUKvDRaM5DZFsuKE1uMD591KhSGGq3wq75JGwP5",
+  "address": "CnsYsfwfmExzEZ456WeYdmEmaX3wVt9ePnyxZjLUJLnz",
   "metadata": {
     "name": "vrgda",
     "version": "0.1.0",
@@ -842,6 +842,20 @@ export type Vrgda = {
             "name": "vrgdaStartTimestamp",
             "docs": [
               "Unix timestamp when the VRGDA began."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "buyWindowTime",
+            "docs": [
+              "The time window in seconds during which a buyer can buy tokens."
+            ],
+            "type": "i64"
+          },
+          {
+            "name": "lastBuyTimestamp",
+            "docs": [
+              "The timestamp of the last buy."
             ],
             "type": "i64"
           },

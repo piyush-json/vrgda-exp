@@ -1,7 +1,7 @@
 import { PublicKey } from '@solana/web3.js'
 
 export const VRGDA_PROGRAM_ID = new PublicKey(
-  '4JfrrwUKvDRaM5DZFsuKE1uMD591KhSGGq3wq75JGwP5'
+  import.meta.env.VITE_PROGRAM_ID || 'CnsYsfwfmExzEZ456WeYdmEmaX3wVt9ePnyxZjLUJLnz'
 )
 
 export const DECIMAL = 1_000_000 // 6 decimals for VRGDA tokens
